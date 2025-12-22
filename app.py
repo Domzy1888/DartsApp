@@ -151,3 +151,45 @@ elif page == "🛠 Admin":
                 updated_res = pd.concat([res_df, new_res], ignore_index=True)
                 conn.update(spreadsheet=SPREADSHEET_URL, worksheet="Results", data=updated_res)
                 st.success("Result Published!")
+
+st.divider()
+st.header("🏆 Competition Leaderboard")
+
+try:
+    # 1. Fetch Predictions and Results
+    preds_df = conn.read(spreadsheet=SPREADSHEET_URL, worksheet="Predictions", ttl=0)
+    results_df = conn.read(spreadsheet=SPREADSHEET_URL, worksheet="Results", ttl=0)
+
+    if not results_df.empty and not preds_df.empty:
+        # 2. Merge them so we can compare row by row
+        merged = preds_df.merge(results_df, on="Match_ID", suffixes=('_pred', '_real'))
+
+        def calculate_points(row):
+            # Perfect Score (3 pts): Winner and Score match exactly
+            if (row['P1_Score_pred'] == row['P1_Score_real']) and (row['P2_Score_pred'] == row['P2_Score_real']):
+                return 3
+            
+            # Correct Winner (1 pt): Wrong score, but the right player won
+            pred_winner = "P1" if row['P1_Score_pred'] > row['P2_Score_pred'] else "P2"
+            real_winner = "P1" if row['P1_Score_real'] > row['P2_Score_real'] else "P2"
+            
+            if pred_winner == real_winner:
+                return 1
+            
+            return 0
+
+        # Apply the logic
+        merged['Points'] = merged.apply(calculate_points, axis=1)
+
+        # 3. Group by User and sum points
+        leaderboard = merged.groupby('User')['Points'].sum().reset_index()
+        leaderboard = leaderboard.sort_values(by='Points', ascending=False)
+
+        # 4. Display the table
+        st.table(leaderboard.assign(Rank=range(1, len(leaderboard) + 1)).set_index('Rank'))
+    else:
+        st.info("Leaderboard will appear once the first match results are entered!")
+
+except Exception as e:
+    st.error("Could not load leaderboard yet. Make sure 'Results' tab exists!")
+
