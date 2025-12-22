@@ -153,47 +153,52 @@ elif page == "🛠 Admin":
                 st.success("Result Published!")
     
     st.divider()
-st.header("🏆 Competition Leaderboard")
+    st.header("🏆 Competition Leaderboard")
 
 try:
-    # 1. Fetch the data
-    preds_df = conn.read(spreadsheet=SPREADSHEET_URL, worksheet="Predictions", ttl=0)
-    results_df = conn.read(spreadsheet=SPREADSHEET_URL, worksheet="Results", ttl=0)
+    # 1. Read fresh data
+    p_df = conn.read(spreadsheet=SPREADSHEET_URL, worksheet="Predictions", ttl=0)
+    r_df = conn.read(spreadsheet=SPREADSHEET_URL, worksheet="Results", ttl=0)
 
-    # Clean the data: Ensure Match_ID is a string so they join correctly
-    preds_df['Match_ID'] = preds_df['Match_ID'].astype(str)
-    results_df['Match_ID'] = results_df['Match_ID'].astype(str)
+    # 2. Safety Check: Only proceed if we have data in both
+    if not r_df.empty and not p_df.empty:
+        
+        # Ensure Match_ID is text in both for a perfect join
+        p_df['Match_ID'] = p_df['Match_ID'].astype(str)
+        r_df['Match_ID'] = r_df['Match_ID'].astype(str)
 
-    if not results_df.empty and not preds_df.empty:
-        # 2. Merge Predictions and Results on Match_ID
-        # Preds Score becomes 'Score_x', Results Score becomes 'Score_y'
-        merged = preds_df.merge(results_df, on="Match_ID")
+        # 3. Merge: Predictions (Left) + Results (Right)
+        # Your 'Score' column becomes 'Score_x' (User's) and 'Score_y' (Actual)
+        final_df = p_df.merge(r_df, on="Match_ID")
 
-        def calculate_points(row):
-            # Perfect Score (3 pts): Prediction matches Result exactly
-            # Using your auto-generated header name 'Score'
-            if str(row['Score_x']).strip() == str(row['Score_y']).strip():
-                return 3
+        # 4. Direct Calculation (No separate function needed)
+        def calc_my_points(row):
+            # Check if User's Score (x) matches Actual Score (y)
+            # We use strip() to ignore accidental spaces
+            user_val = str(row['Score_x']).strip()
+            real_val = str(row['Score_y']).strip()
             
-            # Since your current setup only has one 'Score' column,
-            # we'll start with 3pts for exact matches. 
-            # (We can add Winner logic once you have P1_Score/P2_Score columns!)
+            if user_val == real_val:
+                return 3
             return 0
 
-        # Apply logic
-        merged['Points'] = merged.apply(calculate_points, axis=1)
+        final_df['TotalPoints'] = final_df.apply(calc_my_points, axis=1)
 
-        # 3. Group by 'Username' (matching your B1 header)
-        leaderboard = merged.groupby('Username')['Points'].sum().reset_index()
-        leaderboard = leaderboard.sort_values(by='Points', ascending=False)
+        # 5. Build the Leaderboard using 'Username'
+        summary = final_df.groupby('Username')['TotalPoints'].sum().reset_index()
+        summary = summary.sort_values(by='TotalPoints', ascending=False)
 
-        # 4. Display
-        st.table(leaderboard.set_index('Username'))
+        st.table(summary.set_index('Username'))
+        
     else:
-        st.info("Leaderboard will appear once results are entered in the Google Sheet!")
+        st.info("Leaderboard is empty. Enter results in the 'Results' Google Sheet tab to see standings!")
 
 except Exception as e:
-    st.error(f"Leaderboard Error: {e}")
-    # This helps us see the headers if it fails
-    if 'preds_df' in locals():
-        st.write("Predictions headers found:", preds_df.columns.tolist())
+    st.error("Leaderboard Sync Error")
+    # This part shows you EXACTLY what is wrong in the logs
+    with st.expander("Debug Info for Domzy"):
+        if 'p_df' in locals():
+            st.write("Predictions columns:", p_df.columns.tolist())
+        if 'r_df' in locals():
+            st.write("Results columns:", r_df.columns.tolist())
+        st.write("Actual Error Message:", e)
