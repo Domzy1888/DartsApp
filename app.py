@@ -152,8 +152,8 @@ elif page == "🛠 Admin":
                 conn.update(spreadsheet=SPREADSHEET_URL, worksheet="Results", data=updated_res)
                 st.success("Result Published!")
     
-    st.divider()
-    st.header("🏆 Competition Leaderboard")
+st.divider()
+st.header("🏆 Competition Leaderboard")
 
 try:
     # 1. Read fresh data
@@ -202,3 +202,4 @@ except Exception as e:
         if 'r_df' in locals():
             st.write("Results columns:", r_df.columns.tolist())
         st.write("Actual Error Message:", e)
+
