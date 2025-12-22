@@ -151,49 +151,49 @@ elif page == "🛠 Admin":
                 updated_res = pd.concat([res_df, new_res], ignore_index=True)
                 conn.update(spreadsheet=SPREADSHEET_URL, worksheet="Results", data=updated_res)
                 st.success("Result Published!")
+    
     st.divider()
-    st.header("🏆 Competition Leaderboard")
+st.header("🏆 Competition Leaderboard")
 
 try:
+    # 1. Fetch the data
     preds_df = conn.read(spreadsheet=SPREADSHEET_URL, worksheet="Predictions", ttl=0)
     results_df = conn.read(spreadsheet=SPREADSHEET_URL, worksheet="Results", ttl=0)
 
+    # Clean the data: Ensure Match_ID is a string so they join correctly
+    preds_df['Match_ID'] = preds_df['Match_ID'].astype(str)
+    results_df['Match_ID'] = results_df['Match_ID'].astype(str)
+
     if not results_df.empty and not preds_df.empty:
-        # We merge on Match_ID. Predictions get '_pred', Results get '_real'
-        merged = preds_df.merge(results_df, on="Match_ID", suffixes=('_pred', '_real'))
+        # 2. Merge Predictions and Results on Match_ID
+        # Preds Score becomes 'Score_x', Results Score becomes 'Score_y'
+        merged = preds_df.merge(results_df, on="Match_ID")
 
         def calculate_points(row):
-            # 1. Check for Perfect Score (3 points)
-            # This looks for P1_Score and P2_Score in both tabs
-            if (row['P1_Score_pred'] == row['P1_Score_real']) and \
-               (row['P2_Score_pred'] == row['P2_Score_real']):
+            # Perfect Score (3 pts): Prediction matches Result exactly
+            # Using your auto-generated header name 'Score'
+            if str(row['Score_x']).strip() == str(row['Score_y']).strip():
                 return 3
             
-            # 2. Check for Correct Winner (1 point)
-            pred_win = "P1" if row['P1_Score_pred'] > row['P2_Score_pred'] else "P2"
-            real_win = "P1" if row['P1_Score_real'] > row['P2_Score_real'] else "P2"
-            
-            if pred_win == real_win:
-                return 1
-                
+            # Since your current setup only has one 'Score' column,
+            # we'll start with 3pts for exact matches. 
+            # (We can add Winner logic once you have P1_Score/P2_Score columns!)
             return 0
 
-        # Apply the calculation
+        # Apply logic
         merged['Points'] = merged.apply(calculate_points, axis=1)
 
-        # Summarize by User
-        leaderboard = merged.groupby('User')['Points'].sum().reset_index()
+        # 3. Group by 'Username' (matching your B1 header)
+        leaderboard = merged.groupby('Username')['Points'].sum().reset_index()
         leaderboard = leaderboard.sort_values(by='Points', ascending=False)
-        
-        # Add a Rank column and show it
-        leaderboard.insert(0, 'Rank', range(1, len(leaderboard) + 1))
-        st.table(leaderboard.set_index('Rank'))
+
+        # 4. Display
+        st.table(leaderboard.set_index('Username'))
     else:
-        st.info("Leaderboard will update once match results are entered!")
+        st.info("Leaderboard will appear once results are entered in the Google Sheet!")
 
 except Exception as e:
-    st.error(f"Leaderboard Error: Ensure 'P1_Score' and 'P2_Score' exist in both tabs.")
-    # Show the actual columns for debugging if it fails again
-    if 'merged' in locals():
-        st.write("Columns found:", merged.columns.tolist())
-
+    st.error(f"Leaderboard Error: {e}")
+    # This helps us see the headers if it fails
+    if 'preds_df' in locals():
+        st.write("Predictions headers found:", preds_df.columns.tolist())
