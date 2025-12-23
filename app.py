@@ -3,158 +3,136 @@ from streamlit_gsheets import GSheetsConnection
 import pandas as pd
 
 # 1. Page Configuration
-st.set_page_config(page_title="Darts Predictor", page_icon="🎯")
+st.set_page_config(page_title="Darts Predictor Pro", page_icon="🎯")
 
 # 2. Connection to Google Sheets
 conn = st.connection("gsheets", type=GSheetsConnection)
 SPREADSHEET_URL = st.secrets["connections"]["gsheets"]["spreadsheet"]
 
-# 3. Sidebar Navigation
+# 3. Session State for Login
+if 'username' not in st.session_state:
+    st.session_state['username'] = ""
+
+# --- SIDEBAR LOGIN & NAV ---
+st.sidebar.title("👤 User Access")
+if st.session_state['username'] == "":
+    user_input = st.sidebar.text_input("Enter your name to login:")
+    if st.sidebar.button("Login"):
+        if user_input:
+            st.session_state['username'] = user_input.strip()
+            st.rerun()
+else:
+    st.sidebar.write(f"Logged in as: **{st.session_state['username']}**")
+    if st.sidebar.button("Logout"):
+        st.session_state['username'] = ""
+        st.rerun()
+
+st.sidebar.divider()
 st.sidebar.title("🎯 Menu")
-page = st.sidebar.radio("Go to", ["Predictions", "Leaderboard", "Admin"])
+# Added "Rival Watch" to the list below
+page = st.sidebar.radio("Go to", ["Predictions", "Leaderboard", "Rival Watch", "Admin"])
 
 # --- PAGE: PREDICTIONS ---
 if page == "Predictions":
-    st.title("🎯 Submit Your Prediction")
-    
-    matches_df = conn.read(spreadsheet=SPREADSHEET_URL, worksheet="Matches", ttl=0)
-    
-    if not matches_df.empty:
-        user = st.text_input("Enter your name:")
-        match_choice = st.selectbox("Select Match", matches_df['Match_ID'].astype(str) + ": " + matches_df['Player1'] + " vs " + matches_df['Player2'])
-        match_id = match_choice.split(":")[0]
-        
-        score_pred = st.text_input("Predict Score (e.g., 3-1)")
-        
-        if st.button("Lock Prediction"):
-            # Check if fields are filled
-            if user and score_pred:
-                new_pred = pd.DataFrame([{"Username": user, "Match_ID": match_id, "Score": score_pred}])
-                # Get existing predictions to append
-                existing_preds = conn.read(spreadsheet=SPREADSHEET_URL, worksheet="Predictions", ttl=0)
-                updated_preds = pd.concat([existing_preds, new_pred], ignore_index=True)
-                conn.update(spreadsheet=SPREADSHEET_URL, worksheet="Predictions", data=updated_preds)
-                st.success(f"Prediction saved for {user}!")
-                st.balloons()
-            else:
-                st.warning("Please enter your name and a score.")
+    if st.session_state['username'] == "":
+        st.warning("Please login via the sidebar to make predictions.")
     else:
-        st.info("No matches found in the sheet.")
+        st.title(f"🎯 Predictions for {st.session_state['username']}")
+        
+        matches_df = conn.read(spreadsheet=SPREADSHEET_URL, worksheet="Matches", ttl=0)
+        preds_df = conn.read(spreadsheet=SPREADSHEET_URL, worksheet="Predictions", ttl=0)
+
+        if not matches_df.empty:
+            match_choice = st.selectbox("Select Match", matches_df['Match_ID'].astype(str) + ": " + matches_df['Player1'] + " vs " + matches_df['Player2'])
+            match_id = match_choice.split(":")[0]
+
+            # Check for existing prediction
+            already_predicted = False
+            if not preds_df.empty:
+                check = preds_df[(preds_df['Username'] == st.session_state['username']) & (preds_df['Match_ID'].astype(str) == str(match_id))]
+                if not check.empty:
+                    already_predicted = True
+
+            if already_predicted:
+                st.success("✅ You have already submitted a prediction for this match.")
+            else:
+                col1, col2 = st.columns(2)
+                with col1:
+                    p1_score = st.selectbox("Player 1 Score", range(0, 11))
+                with col2:
+                    p2_score = st.selectbox("Player 2 Score", range(0, 11))
+                
+                if st.button("Lock Prediction"):
+                    score_string = f"{p1_score}-{p2_score}"
+                    new_pred = pd.DataFrame([{"Username": st.session_state['username'], "Match_ID": match_id, "Score": score_string}])
+                    
+                    updated_preds = pd.concat([preds_df, new_pred], ignore_index=True)
+                    conn.update(spreadsheet=SPREADSHEET_URL, worksheet="Predictions", data=updated_preds)
+                    st.success("Prediction locked in!")
+                    st.balloons()
+                    st.rerun()
+        else:
+            st.info("No matches available yet.")
 
 # --- PAGE: LEADERBOARD ---
 elif page == "Leaderboard":
     st.title("🏆 Competition Standings")
-    
-    try:
-        p_df = conn.read(spreadsheet=SPREADSHEET_URL, worksheet="Predictions", ttl=0)
-        r_df = conn.read(spreadsheet=SPREADSHEET_URL, worksheet="Results", ttl=0)
+    p_df = conn.read(spreadsheet=SPREADSHEET_URL, worksheet="Predictions", ttl=0)
+    r_df = conn.read(spreadsheet=SPREADSHEET_URL, worksheet="Results", ttl=0)
 
-        if not r_df.empty and not p_df.empty:
-            p_df['Match_ID'] = p_df['Match_ID'].astype(str)
-            r_df['Match_ID'] = r_df['Match_ID'].astype(str)
+    if not r_df.empty and not p_df.empty:
+        p_df['Match_ID'] = p_df['Match_ID'].astype(str)
+        r_df['Match_ID'] = r_df['Match_ID'].astype(str)
+        merged = p_df.merge(r_df, on="Match_ID", suffixes=('_user', '_real'))
 
-            # Merge predictions with actual results
-            merged = p_df.merge(r_df, on="Match_ID", suffixes=('_user', '_real'))
+        def calc_pts(row):
+            try:
+                u_p1, u_p2 = map(int, str(row['Score_user']).split('-'))
+                r_p1, r_p2 = map(int, str(row['Score_real']).split('-'))
+                if u_p1 == r_p1 and u_p2 == r_p2: return 3
+                if (u_p1 > u_p2 and r_p1 > r_p2) or (u_p1 < u_p2 and r_p1 < r_p2): return 1
+                return 0
+            except: return 0
 
-            def calculate_domzy_points(row):
-                try:
-                    # Split "3-1" into [3, 1]
-                    u_p1, u_p2 = map(int, str(row['Score_user']).split('-'))
-                    r_p1, r_p2 = map(int, str(row['Score_real']).split('-'))
-
-                    # RULE 1: Exact Match (3 Points)
-                    if u_p1 == r_p1 and u_p2 == r_p2:
-                        return 3
-                    
-                    # RULE 2: Correct Winner (1 Point)
-                    u_winner = "P1" if u_p1 > u_p2 else "P2"
-                    r_winner = "P1" if r_p1 > r_p2 else "P2"
-                    
-                    if u_winner == r_winner:
-                        return 1
-                    
-                    return 0
-                except:
-                    return 0 # Handles cases where score format is wrong
-
-            merged['Points'] = merged.apply(calculate_domzy_points, axis=1)
-            
-            # Group by Username and sum points
-            leaderboard = merged.groupby('Username')['Points'].sum().reset_index()
-            leaderboard = leaderboard.sort_values(by='Points', ascending=False)
-            
-            st.table(leaderboard.set_index('Username'))
-        else:
-            st.info("Results aren't in yet. Keep an eye on the oche!")
-            
-    except Exception as e:
-        st.error(f"Syncing Error: {e}")
+        merged['Points'] = merged.apply(calc_pts, axis=1)
+        leaderboard = merged.groupby('Username')['Points'].sum().reset_index()
+        st.table(leaderboard.sort_values(by='Points', ascending=False).set_index('Username'))
+    else:
+        st.info("Results aren't in yet.")
 
 # --- PAGE: RIVAL WATCH ---
 elif page == "Rival Watch":
     st.title("👀 Rival Watch")
-    st.write("See what your competitors are predicting for upcoming matches!")
-
-    # 1. Load Matches and Predictions
     matches_df = conn.read(spreadsheet=SPREADSHEET_URL, worksheet="Matches", ttl=0)
     preds_df = conn.read(spreadsheet=SPREADSHEET_URL, worksheet="Predictions", ttl=0)
 
-    if not matches_df.empty:
-        # 2. Select a match to inspect
-        match_choice = st.selectbox("Select Match to View", 
-                                    matches_df['Match_ID'].astype(str) + ": " + 
-                                    matches_df['Player1'] + " vs " + 
-                                    matches_df['Player2'])
+    if not matches_df.empty and not preds_df.empty:
+        match_choice = st.selectbox("Select Match to Inspect", matches_df['Match_ID'].astype(str) + ": " + matches_df['Player1'] + " vs " + matches_df['Player2'])
         match_id = match_choice.split(":")[0]
-
-        # 3. Filter predictions for just this match
-        if not preds_df.empty:
-            match_preds = preds_df[preds_df['Match_ID'].astype(str) == str(match_id)]
-            
-            if not match_preds.empty:
-                # We only need the Username and their Score
-                display_df = match_preds[['Username', 'Score']].copy()
-                
-                # Visual flair: Highlight your own prediction
-                def highlight_me(row):
-                    if row.Username == st.session_state['username']:
-                        return ['background-color: #1f77b4; color: white'] * len(row)
-                    return [''] * len(row)
-
-                st.table(display_df.set_index('Username'))
-            else:
-                st.info("No predictions yet for this match. Be the first!")
+        
+        match_preds = preds_df[preds_df['Match_ID'].astype(str) == str(match_id)]
+        if not match_preds.empty:
+            st.table(match_preds[['Username', 'Score']].set_index('Username'))
+        else:
+            st.info("No predictions yet for this match.")
     else:
-        st.info("No matches available to watch.")
+        st.info("Nothing to watch yet.")
 
 # --- PAGE: ADMIN ---
 elif page == "Admin":
-    st.title("🛠 Admin: Enter Results")
-    
-    password = st.text_input("Admin Password", type="password")
-    if password == "darts2025": # You can change this!
+    st.title("🛠 Admin: Results Entry")
+    pwd = st.text_input("Admin Password", type="password")
+    if pwd == "darts2025":
         matches_df = conn.read(spreadsheet=SPREADSHEET_URL, worksheet="Matches", ttl=0)
-        
         if not matches_df.empty:
-            match_to_update = st.selectbox("Select Finished Match", 
-                                           matches_df['Match_ID'].astype(str) + ": " + matches_df['Player1'] + " vs " + matches_df['Player2'])
+            match_to_res = st.selectbox("Which match finished?", matches_df['Match_ID'].astype(str) + ": " + matches_df['Player1'] + " vs " + matches_df['Player2'])
+            c1, c2 = st.columns(2)
+            with c1: rs1 = st.selectbox("Actual P1 Score", range(0, 11))
+            with c2: rs2 = st.selectbox("Actual P2 Score", range(0, 11))
             
-            official_score = st.text_input("Final Score (e.g., 3-0)")
-            
-            if st.button("Update Leaderboard"):
-                match_id = match_to_update.split(":")[0]
-                new_result = pd.DataFrame([{"Match_ID": match_id, "Score": official_score}])
-                
-                # Append to Results tab
-                existing_results = conn.read(spreadsheet=SPREADSHEET_URL, worksheet="Results", ttl=0)
-                updated_results = pd.concat([existing_results, new_result], ignore_index=True)
-                conn.update(spreadsheet=SPREADSHEET_URL, worksheet="Results", data=updated_results)
-                
-                st.success("Result recorded! Check the Leaderboard.")
-    else:
-        st.write("Please enter the password to access admin tools.")
-
-
-
-
-
+            if st.button("Submit Official Result"):
+                m_id = match_to_res.split(":")[0]
+                res_df = conn.read(spreadsheet=SPREADSHEET_URL, worksheet="Results", ttl=0)
+                new_res = pd.DataFrame([{"Match_ID": m_id, "Score": f"{rs1}-{rs2}"}])
+                conn.update(spreadsheet=SPREADSHEET_URL, worksheet="Results", data=pd.concat([res_df, new_res], ignore_index=True))
+                st.success("Result recorded!")
