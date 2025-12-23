@@ -29,7 +29,6 @@ else:
 
 st.sidebar.divider()
 st.sidebar.title("🎯 Menu")
-# Added "Rival Watch" to the list below
 page = st.sidebar.radio("Go to", ["Predictions", "Leaderboard", "Rival Watch", "Admin"])
 
 # --- PAGE: PREDICTIONS ---
@@ -62,15 +61,23 @@ if page == "Predictions":
                 with col2:
                     p2_score = st.selectbox("Player 2 Score", range(0, 11))
                 
-                if st.button("Lock Prediction"):
+                                if st.button("Lock Prediction"):
+                    # Create only the single new row
                     score_string = f"{p1_score}-{p2_score}"
-                    new_pred = pd.DataFrame([{"Username": st.session_state['username'], "Match_ID": match_id, "Score": score_string}])
+                    new_row = pd.DataFrame([{
+                        "Username": st.session_state['username'], 
+                        "Match_ID": match_id, 
+                        "Score": score_string
+                    }])
                     
-                    updated_preds = pd.concat([preds_df, new_pred], ignore_index=True)
-                    conn.update(spreadsheet=SPREADSHEET_URL, worksheet="Predictions", data=updated_preds)
+                    # .create() appends to the sheet instead of overwriting everything
+                    conn.create(spreadsheet=SPREADSHEET_URL, worksheet="Predictions", data=new_row)
+                    
+                    st.cache_data.clear() 
                     st.success("Prediction locked in!")
                     st.balloons()
                     st.rerun()
+
         else:
             st.info("No matches available yet.")
 
@@ -130,9 +137,19 @@ elif page == "Admin":
             with c1: rs1 = st.selectbox("Actual P1 Score", range(0, 11))
             with c2: rs2 = st.selectbox("Actual P2 Score", range(0, 11))
             
-            if st.button("Submit Official Result"):
+                        if st.button("Submit Official Result"):
                 m_id = match_to_res.split(":")[0]
-                res_df = conn.read(spreadsheet=SPREADSHEET_URL, worksheet="Results", ttl=60)
-                new_res = pd.DataFrame([{"Match_ID": m_id, "Score": f"{rs1}-{rs2}"}])
-                conn.update(spreadsheet=SPREADSHEET_URL, worksheet="Results", data=pd.concat([res_df, new_res], ignore_index=True))
+                
+                # Create only the single new result row
+                new_res_row = pd.DataFrame([{
+                    "Match_ID": m_id, 
+                    "Score": f"{rs1}-{rs2}"
+                }])
+                
+                # Append only the new result
+                conn.create(spreadsheet=SPREADSHEET_URL, worksheet="Results", data=new_res_row)
+                
+                st.cache_data.clear()
                 st.success("Result recorded!")
+                st.rerun()
+
