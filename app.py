@@ -39,8 +39,8 @@ if page == "Predictions":
     else:
         st.title(f"🎯 Predictions for {st.session_state['username']}")
         
-        matches_df = conn.read(spreadsheet=SPREADSHEET_URL, worksheet="Matches", ttl=0)
-        preds_df = conn.read(spreadsheet=SPREADSHEET_URL, worksheet="Predictions", ttl=0)
+        matches_df = conn.read(spreadsheet=SPREADSHEET_URL, worksheet="Matches", ttl=60)
+        preds_df = conn.read(spreadsheet=SPREADSHEET_URL, worksheet="Predictions", ttl=60)
 
         if not matches_df.empty:
             match_choice = st.selectbox("Select Match", matches_df['Match_ID'].astype(str) + ": " + matches_df['Player1'] + " vs " + matches_df['Player2'])
@@ -77,8 +77,8 @@ if page == "Predictions":
 # --- PAGE: LEADERBOARD ---
 elif page == "Leaderboard":
     st.title("🏆 Competition Standings")
-    p_df = conn.read(spreadsheet=SPREADSHEET_URL, worksheet="Predictions", ttl=0)
-    r_df = conn.read(spreadsheet=SPREADSHEET_URL, worksheet="Results", ttl=0)
+    p_df = conn.read(spreadsheet=SPREADSHEET_URL, worksheet="Predictions", ttl=60)
+    r_df = conn.read(spreadsheet=SPREADSHEET_URL, worksheet="Results", ttl=60)
 
     if not r_df.empty and not p_df.empty:
         p_df['Match_ID'] = p_df['Match_ID'].astype(str)
@@ -103,8 +103,8 @@ elif page == "Leaderboard":
 # --- PAGE: RIVAL WATCH ---
 elif page == "Rival Watch":
     st.title("👀 Rival Watch")
-    matches_df = conn.read(spreadsheet=SPREADSHEET_URL, worksheet="Matches", ttl=0)
-    preds_df = conn.read(spreadsheet=SPREADSHEET_URL, worksheet="Predictions", ttl=0)
+    matches_df = conn.read(spreadsheet=SPREADSHEET_URL, worksheet="Matches", ttl=60)
+    preds_df = conn.read(spreadsheet=SPREADSHEET_URL, worksheet="Predictions", ttl=60)
 
     if not matches_df.empty and not preds_df.empty:
         match_choice = st.selectbox("Select Match to Inspect", matches_df['Match_ID'].astype(str) + ": " + matches_df['Player1'] + " vs " + matches_df['Player2'])
@@ -123,7 +123,7 @@ elif page == "Admin":
     st.title("🛠 Admin: Results Entry")
     pwd = st.text_input("Admin Password", type="password")
     if pwd == "darts2025":
-        matches_df = conn.read(spreadsheet=SPREADSHEET_URL, worksheet="Matches", ttl=0)
+        matches_df = conn.read(spreadsheet=SPREADSHEET_URL, worksheet="Matches", ttl=60)
         if not matches_df.empty:
             match_to_res = st.selectbox("Which match finished?", matches_df['Match_ID'].astype(str) + ": " + matches_df['Player1'] + " vs " + matches_df['Player2'])
             c1, c2 = st.columns(2)
@@ -132,7 +132,7 @@ elif page == "Admin":
             
             if st.button("Submit Official Result"):
                 m_id = match_to_res.split(":")[0]
-                res_df = conn.read(spreadsheet=SPREADSHEET_URL, worksheet="Results", ttl=0)
+                res_df = conn.read(spreadsheet=SPREADSHEET_URL, worksheet="Results", ttl=60)
                 new_res = pd.DataFrame([{"Match_ID": m_id, "Score": f"{rs1}-{rs2}"}])
                 conn.update(spreadsheet=SPREADSHEET_URL, worksheet="Results", data=pd.concat([res_df, new_res], ignore_index=True))
                 st.success("Result recorded!")
