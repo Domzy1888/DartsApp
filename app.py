@@ -90,33 +90,6 @@ elif page == "Leaderboard":
     except Exception as e:
         st.error(f"Syncing Error: {e}")
 
-# --- PAGE: ADMIN ---
-elif page == "Admin":
-    st.title("🛠 Admin: Enter Results")
-    
-    password = st.text_input("Admin Password", type="password")
-    if password == "darts2025": # You can change this!
-        matches_df = conn.read(spreadsheet=SPREADSHEET_URL, worksheet="Matches", ttl=0)
-        
-        if not matches_df.empty:
-            match_to_update = st.selectbox("Select Finished Match", 
-                                           matches_df['Match_ID'].astype(str) + ": " + matches_df['Player1'] + " vs " + matches_df['Player2'])
-            
-            official_score = st.text_input("Final Score (e.g., 3-0)")
-            
-            if st.button("Update Leaderboard"):
-                match_id = match_to_update.split(":")[0]
-                new_result = pd.DataFrame([{"Match_ID": match_id, "Score": official_score}])
-                
-                # Append to Results tab
-                existing_results = conn.read(spreadsheet=SPREADSHEET_URL, worksheet="Results", ttl=0)
-                updated_results = pd.concat([existing_results, new_result], ignore_index=True)
-                conn.update(spreadsheet=SPREADSHEET_URL, worksheet="Results", data=updated_results)
-                
-                st.success("Result recorded! Check the Leaderboard.")
-    else:
-        st.write("Please enter the password to access admin tools.")
-
 # --- PAGE: RIVAL WATCH ---
 elif page == "Rival Watch":
     st.title("👀 Rival Watch")
@@ -153,6 +126,34 @@ elif page == "Rival Watch":
                 st.info("No predictions yet for this match. Be the first!")
     else:
         st.info("No matches available to watch.")
+
+# --- PAGE: ADMIN ---
+elif page == "Admin":
+    st.title("🛠 Admin: Enter Results")
+    
+    password = st.text_input("Admin Password", type="password")
+    if password == "darts2025": # You can change this!
+        matches_df = conn.read(spreadsheet=SPREADSHEET_URL, worksheet="Matches", ttl=0)
+        
+        if not matches_df.empty:
+            match_to_update = st.selectbox("Select Finished Match", 
+                                           matches_df['Match_ID'].astype(str) + ": " + matches_df['Player1'] + " vs " + matches_df['Player2'])
+            
+            official_score = st.text_input("Final Score (e.g., 3-0)")
+            
+            if st.button("Update Leaderboard"):
+                match_id = match_to_update.split(":")[0]
+                new_result = pd.DataFrame([{"Match_ID": match_id, "Score": official_score}])
+                
+                # Append to Results tab
+                existing_results = conn.read(spreadsheet=SPREADSHEET_URL, worksheet="Results", ttl=0)
+                updated_results = pd.concat([existing_results, new_result], ignore_index=True)
+                conn.update(spreadsheet=SPREADSHEET_URL, worksheet="Results", data=updated_results)
+                
+                st.success("Result recorded! Check the Leaderboard.")
+    else:
+        st.write("Please enter the password to access admin tools.")
+
 
 
 
