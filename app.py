@@ -7,7 +7,6 @@ st.set_page_config(page_title="Darts Predictor Pro", page_icon="🎯")
 
 # 2. Connection to Google Sheets
 conn = st.connection("gsheets", type=GSheetsConnection)
-# We pull the URL once here
 URL = st.secrets["connections"]["gsheets"]["spreadsheet"]
 
 # 3. Session State for Login
@@ -62,17 +61,20 @@ if page == "Predictions":
                     p2_score = st.selectbox("Player 2 Score", range(0, 11))
                 
                 if st.button("Lock Prediction"):
+                    # 1. Clear cache to ensure we get the absolute latest data
+                    st.cache_data.clear()
+                    
+                    # 2. Read the current sheet fresh (ttl=0)
+                    current_preds = conn.read(spreadsheet=URL, worksheet="Predictions", ttl=0)
+                    
+                    # 3. Create the new row
                     score_string = f"{p1_score}-{p2_score}"
-                    new_row = pd.DataFrame([{
-                        "Username": st.session_state['username'], 
-                        "Match_ID": match_id, 
-                        "Score": score_string
-                    }])
+                    new_row = pd.DataFrame([{"Username": st.session_state['username'], "Match_ID": match_id, "Score": score_string}])
                     
-                    # FIX: Use 'spreadsheet=URL' explicitly
-                    conn.create(spreadsheet=URL, worksheet="Predictions", data=new_row)
+                    # 4. Combine and update the whole sheet
+                    updated_df = pd.concat([current_preds, new_row], ignore_index=True)
+                    conn.update(spreadsheet=URL, worksheet="Predictions", data=updated_df)
                     
-                    st.cache_data.clear() 
                     st.success("Prediction locked in!")
                     st.balloons()
                     st.rerun()
@@ -136,12 +138,14 @@ elif page == "Admin":
             with c2: rs2 = st.selectbox("Actual P2 Score", range(0, 11))
             
             if st.button("Submit Official Result"):
+                st.cache_data.clear()
+                current_results = conn.read(spreadsheet=URL, worksheet="Results", ttl=0)
+                
                 m_id = match_to_res.split(":")[0]
                 new_res_row = pd.DataFrame([{"Match_ID": m_id, "Score": f"{rs1}-{rs2}"}])
                 
-                # FIX: Use 'spreadsheet=URL' explicitly
-                conn.create(spreadsheet=URL, worksheet="Results", data=new_res_row)
+                updated_results = pd.concat([current_results, new_res_row], ignore_index=True)
+                conn.update(spreadsheet=URL, worksheet="Results", data=updated_results)
                 
-                st.cache_data.clear()
                 st.success("Result recorded!")
                 st.rerun()
