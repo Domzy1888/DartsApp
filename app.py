@@ -61,7 +61,7 @@ if page == "Predictions":
                 with col2:
                     p2_score = st.selectbox("Player 2 Score", range(0, 11))
                 
-                                if st.button("Lock Prediction"):
+                    if st.button("Lock Prediction"):
                     # Create only the single new row
                     score_string = f"{p1_score}-{p2_score}"
                     new_row = pd.DataFrame([{
@@ -137,7 +137,7 @@ elif page == "Admin":
             with c1: rs1 = st.selectbox("Actual P1 Score", range(0, 11))
             with c2: rs2 = st.selectbox("Actual P2 Score", range(0, 11))
             
-                        if st.button("Submit Official Result"):
+                if st.button("Submit Official Result"):
                 m_id = match_to_res.split(":")[0]
                 
                 # Create only the single new result row
