@@ -7,7 +7,8 @@ st.set_page_config(page_title="Darts Predictor Pro", page_icon="🎯")
 
 # 2. Connection to Google Sheets
 conn = st.connection("gsheets", type=GSheetsConnection)
-SPREADSHEET_URL = st.secrets["connections"]["gsheets"]["spreadsheet"]
+# We pull the URL once here
+URL = st.secrets["connections"]["gsheets"]["spreadsheet"]
 
 # 3. Session State for Login
 if 'username' not in st.session_state:
@@ -38,14 +39,13 @@ if page == "Predictions":
     else:
         st.title(f"🎯 Predictions for {st.session_state['username']}")
         
-        matches_df = conn.read(spreadsheet=SPREADSHEET_URL, worksheet="Matches", ttl=60)
-        preds_df = conn.read(spreadsheet=SPREADSHEET_URL, worksheet="Predictions", ttl=60)
+        matches_df = conn.read(spreadsheet=URL, worksheet="Matches", ttl=60)
+        preds_df = conn.read(spreadsheet=URL, worksheet="Predictions", ttl=60)
 
         if not matches_df.empty:
             match_choice = st.selectbox("Select Match", matches_df['Match_ID'].astype(str) + ": " + matches_df['Player1'] + " vs " + matches_df['Player2'])
             match_id = match_choice.split(":")[0]
 
-            # Check for existing prediction
             already_predicted = False
             if not preds_df.empty:
                 check = preds_df[(preds_df['Username'] == st.session_state['username']) & (preds_df['Match_ID'].astype(str) == str(match_id))]
@@ -62,7 +62,6 @@ if page == "Predictions":
                     p2_score = st.selectbox("Player 2 Score", range(0, 11))
                 
                 if st.button("Lock Prediction"):
-                    # Create only the single new row
                     score_string = f"{p1_score}-{p2_score}"
                     new_row = pd.DataFrame([{
                         "Username": st.session_state['username'], 
@@ -70,8 +69,8 @@ if page == "Predictions":
                         "Score": score_string
                     }])
                     
-                    # .create() appends to the bottom of the sheet
-                    conn.create(spreadsheet=SPREADSHEET_URL, worksheet="Predictions", data=new_row)
+                    # FIX: Use 'spreadsheet=URL' explicitly
+                    conn.create(spreadsheet=URL, worksheet="Predictions", data=new_row)
                     
                     st.cache_data.clear() 
                     st.success("Prediction locked in!")
@@ -83,8 +82,8 @@ if page == "Predictions":
 # --- PAGE: LEADERBOARD ---
 elif page == "Leaderboard":
     st.title("🏆 Competition Standings")
-    p_df = conn.read(spreadsheet=SPREADSHEET_URL, worksheet="Predictions", ttl=60)
-    r_df = conn.read(spreadsheet=SPREADSHEET_URL, worksheet="Results", ttl=60)
+    p_df = conn.read(spreadsheet=URL, worksheet="Predictions", ttl=60)
+    r_df = conn.read(spreadsheet=URL, worksheet="Results", ttl=60)
 
     if not r_df.empty and not p_df.empty:
         p_df['Match_ID'] = p_df['Match_ID'].astype(str)
@@ -95,9 +94,7 @@ elif page == "Leaderboard":
             try:
                 u_p1, u_p2 = map(int, str(row['Score_user']).split('-'))
                 r_p1, r_p2 = map(int, str(row['Score_real']).split('-'))
-                # 3 points for exact score
                 if u_p1 == r_p1 and u_p2 == r_p2: return 3
-                # 1 point for correct winner
                 if (u_p1 > u_p2 and r_p1 > r_p2) or (u_p1 < u_p2 and r_p1 < r_p2): return 1
                 return 0
             except: return 0
@@ -111,8 +108,8 @@ elif page == "Leaderboard":
 # --- PAGE: RIVAL WATCH ---
 elif page == "Rival Watch":
     st.title("👀 Rival Watch")
-    matches_df = conn.read(spreadsheet=SPREADSHEET_URL, worksheet="Matches", ttl=60)
-    preds_df = conn.read(spreadsheet=SPREADSHEET_URL, worksheet="Predictions", ttl=60)
+    matches_df = conn.read(spreadsheet=URL, worksheet="Matches", ttl=60)
+    preds_df = conn.read(spreadsheet=URL, worksheet="Predictions", ttl=60)
 
     if not matches_df.empty and not preds_df.empty:
         match_choice = st.selectbox("Select Match to Inspect", matches_df['Match_ID'].astype(str) + ": " + matches_df['Player1'] + " vs " + matches_df['Player2'])
@@ -131,7 +128,7 @@ elif page == "Admin":
     st.title("🛠 Admin: Results Entry")
     pwd = st.text_input("Admin Password", type="password")
     if pwd == "darts2025":
-        matches_df = conn.read(spreadsheet=SPREADSHEET_URL, worksheet="Matches", ttl=60)
+        matches_df = conn.read(spreadsheet=URL, worksheet="Matches", ttl=60)
         if not matches_df.empty:
             match_to_res = st.selectbox("Which match finished?", matches_df['Match_ID'].astype(str) + ": " + matches_df['Player1'] + " vs " + matches_df['Player2'])
             c1, c2 = st.columns(2)
@@ -140,13 +137,11 @@ elif page == "Admin":
             
             if st.button("Submit Official Result"):
                 m_id = match_to_res.split(":")[0]
-                # Create only the single new result row
-                new_res_row = pd.DataFrame([{
-                    "Match_ID": m_id, 
-                    "Score": f"{rs1}-{rs2}"
-                }])
-                # Append to the sheet
-                conn.create(spreadsheet=SPREADSHEET_URL, worksheet="Results", data=new_res_row)
+                new_res_row = pd.DataFrame([{"Match_ID": m_id, "Score": f"{rs1}-{rs2}"}])
+                
+                # FIX: Use 'spreadsheet=URL' explicitly
+                conn.create(spreadsheet=URL, worksheet="Results", data=new_res_row)
+                
                 st.cache_data.clear()
                 st.success("Result recorded!")
                 st.rerun()
