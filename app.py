@@ -63,19 +63,29 @@ if page == "Predictions":
         
         matches_df = conn.read(spreadsheet=URL, worksheet="Matches", ttl=60)
         preds_df = conn.read(spreadsheet=URL, worksheet="Predictions", ttl=60)
+        results_df = conn.read(spreadsheet=URL, worksheet="Results", ttl=60) # Load results
 
         if not matches_df.empty:
             match_choice = st.selectbox("Select Match", matches_df['Match_ID'].astype(str) + ": " + matches_df['Player1'] + " vs " + matches_df['Player2'])
-            match_id = match_choice.split(":")[0]
+            match_id = str(match_choice.split(":")[0])
 
-            # Check for existing prediction
+            # 1. Check if match is already resulted (CLOSED)
+            is_closed = False
+            if not results_df.empty:
+                if match_id in results_df['Match_ID'].astype(str).values:
+                    is_closed = True
+
+            # 2. Check if user already predicted (DONE)
             already_predicted = False
             if not preds_df.empty:
-                check = preds_df[(preds_df['Username'] == st.session_state['username']) & (preds_df['Match_ID'].astype(str) == str(match_id))]
+                check = preds_df[(preds_df['Username'] == st.session_state['username']) & (preds_df['Match_ID'].astype(str) == match_id)]
                 if not check.empty:
                     already_predicted = True
 
-            if already_predicted:
+            # DISPLAY LOGIC
+            if is_closed:
+                st.error("🚫 This match has already finished. Predictions are closed!")
+            elif already_predicted:
                 st.success("✅ You have already submitted a prediction for this match.")
             else:
                 col1, col2 = st.columns(2)
@@ -86,16 +96,22 @@ if page == "Predictions":
                 
                 if st.button("Lock Prediction"):
                     st.cache_data.clear()
-                    current_preds = conn.read(spreadsheet=URL, worksheet="Predictions", ttl=0)
-                    score_string = f"{p1_score}-{p2_score}"
-                    new_row = pd.DataFrame([{"Username": st.session_state['username'], "Match_ID": match_id, "Score": score_string}])
-                    updated_df = pd.concat([current_preds, new_row], ignore_index=True)
-                    conn.update(spreadsheet=URL, worksheet="Predictions", data=updated_df)
-                    st.success("Prediction locked in!")
-                    st.balloons()
-                    st.rerun()
+                    # Re-check results one last time before saving (to prevent last-second cheating)
+                    fresh_results = conn.read(spreadsheet=URL, worksheet="Results", ttl=0)
+                    if match_id in fresh_results['Match_ID'].astype(str).values:
+                        st.error("Too late! The result was just posted.")
+                    else:
+                        current_preds = conn.read(spreadsheet=URL, worksheet="Predictions", ttl=0)
+                        score_string = f"{p1_score}-{p2_score}"
+                        new_row = pd.DataFrame([{"Username": st.session_state['username'], "Match_ID": match_id, "Score": score_string}])
+                        updated_df = pd.concat([current_preds, new_row], ignore_index=True)
+                        conn.update(spreadsheet=URL, worksheet="Predictions", data=updated_df)
+                        st.success("Prediction locked in!")
+                        st.balloons()
+                        st.rerun()
         else:
             st.info("No matches available yet.")
+
 
 # --- LEADERBOARD (Same as before) ---
 elif page == "Leaderboard":
