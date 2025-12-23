@@ -116,3 +116,44 @@ elif page == "Admin":
                 st.success("Result recorded! Check the Leaderboard.")
     else:
         st.write("Please enter the password to access admin tools.")
+
+# --- PAGE: RIVAL WATCH ---
+elif page == "Rival Watch":
+    st.title("👀 Rival Watch")
+    st.write("See what your competitors are predicting for upcoming matches!")
+
+    # 1. Load Matches and Predictions
+    matches_df = conn.read(spreadsheet=SPREADSHEET_URL, worksheet="Matches", ttl=0)
+    preds_df = conn.read(spreadsheet=SPREADSHEET_URL, worksheet="Predictions", ttl=0)
+
+    if not matches_df.empty:
+        # 2. Select a match to inspect
+        match_choice = st.selectbox("Select Match to View", 
+                                    matches_df['Match_ID'].astype(str) + ": " + 
+                                    matches_df['Player1'] + " vs " + 
+                                    matches_df['Player2'])
+        match_id = match_choice.split(":")[0]
+
+        # 3. Filter predictions for just this match
+        if not preds_df.empty:
+            match_preds = preds_df[preds_df['Match_ID'].astype(str) == str(match_id)]
+            
+            if not match_preds.empty:
+                # We only need the Username and their Score
+                display_df = match_preds[['Username', 'Score']].copy()
+                
+                # Visual flair: Highlight your own prediction
+                def highlight_me(row):
+                    if row.Username == st.session_state['username']:
+                        return ['background-color: #1f77b4; color: white'] * len(row)
+                    return [''] * len(row)
+
+                st.table(display_df.set_index('Username'))
+            else:
+                st.info("No predictions yet for this match. Be the first!")
+    else:
+        st.info("No matches available to watch.")
+
+
+
+
