@@ -61,7 +61,7 @@ if page == "Predictions":
                 with col2:
                     p2_score = st.selectbox("Player 2 Score", range(0, 11))
                 
-                    if st.button("Lock Prediction"):
+                if st.button("Lock Prediction"):
                     # Create only the single new row
                     score_string = f"{p1_score}-{p2_score}"
                     new_row = pd.DataFrame([{
@@ -70,14 +70,13 @@ if page == "Predictions":
                         "Score": score_string
                     }])
                     
-                    # .create() appends to the sheet instead of overwriting everything
+                    # .create() appends to the bottom of the sheet
                     conn.create(spreadsheet=SPREADSHEET_URL, worksheet="Predictions", data=new_row)
                     
                     st.cache_data.clear() 
                     st.success("Prediction locked in!")
                     st.balloons()
                     st.rerun()
-
         else:
             st.info("No matches available yet.")
 
@@ -96,7 +95,9 @@ elif page == "Leaderboard":
             try:
                 u_p1, u_p2 = map(int, str(row['Score_user']).split('-'))
                 r_p1, r_p2 = map(int, str(row['Score_real']).split('-'))
+                # 3 points for exact score
                 if u_p1 == r_p1 and u_p2 == r_p2: return 3
+                # 1 point for correct winner
                 if (u_p1 > u_p2 and r_p1 > r_p2) or (u_p1 < u_p2 and r_p1 < r_p2): return 1
                 return 0
             except: return 0
@@ -137,19 +138,15 @@ elif page == "Admin":
             with c1: rs1 = st.selectbox("Actual P1 Score", range(0, 11))
             with c2: rs2 = st.selectbox("Actual P2 Score", range(0, 11))
             
-                if st.button("Submit Official Result"):
+            if st.button("Submit Official Result"):
                 m_id = match_to_res.split(":")[0]
-                
                 # Create only the single new result row
                 new_res_row = pd.DataFrame([{
                     "Match_ID": m_id, 
                     "Score": f"{rs1}-{rs2}"
                 }])
-                
-                # Append only the new result
+                # Append to the sheet
                 conn.create(spreadsheet=SPREADSHEET_URL, worksheet="Results", data=new_res_row)
-                
                 st.cache_data.clear()
                 st.success("Result recorded!")
                 st.rerun()
-
