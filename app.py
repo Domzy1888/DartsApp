@@ -2,6 +2,7 @@ import streamlit as st
 from streamlit_gsheets import GSheetsConnection
 import pandas as pd
 import time
+from datetime import date
 
 # 1. Page Configuration
 st.set_page_config(page_title="Darts Predictor Pro", page_icon="🎯", layout="wide")
@@ -10,12 +11,12 @@ st.set_page_config(page_title="Darts Predictor Pro", page_icon="🎯", layout="w
 conn = st.connection("gsheets", type=GSheetsConnection)
 URL = st.secrets["connections"]["gsheets"]["spreadsheet"]
 
-# 3. Cached Data Reading (Reduces API hits)
+# 3. Cached Data Reading
 @st.cache_data(ttl=60)
 def get_data(worksheet):
     return conn.read(spreadsheet=URL, worksheet=worksheet, ttl=0)
 
-# 4. Pro Styling (Mobile-First, Side-by-Side)
+# 4. Pro Styling
 def apply_pro_styling():
     st.markdown(
         f"""
@@ -28,7 +29,6 @@ def apply_pro_styling():
         h1, h2, h3, p {{ color: white !important; }}
         [data-testid="stSidebarContent"] {{ background-color: #111111 !important; }}
         
-        /* The Gold Match Card */
         [data-testid="stVerticalBlock"] > div:has(.match-wrapper) {{
             border: 2px solid #ffd700 !important;
             border-radius: 15px !important;
@@ -46,7 +46,6 @@ def apply_pro_styling():
             color: #ffd700 !important; margin-top: 8px; text-align: center; 
         }}
         
-        /* High-Visibility Bulk Lock Button */
         div.stButton > button {{
             background-color: #ffd700 !important;
             color: #000 !important;
@@ -54,7 +53,6 @@ def apply_pro_styling():
             width: 100% !important;
             border-radius: 10px !important;
             height: 3.5em !important;
-            font-size: 1.2rem !important;
         }}
         
         div[data-baseweb="select"] > div {{
@@ -68,7 +66,7 @@ def apply_pro_styling():
 
 apply_pro_styling()
 
-# 5. Session State Initialization
+# 5. Session State
 if 'username' not in st.session_state: st.session_state['username'] = ""
 if 'temp_preds' not in st.session_state: st.session_state.temp_preds = {}
 
@@ -110,11 +108,27 @@ if page == "Predictions":
         p_df = get_data("Predictions")
         r_df = get_data("Results")
 
+        # Date Filtering Logic
+        if 'Date' in m_df.columns:
+            m_df['Date'] = pd.to_datetime(m_df['Date']).dt.date
+            unique_dates = sorted(m_df['Date'].unique())
+            today_val = date.today()
+            view_date = st.selectbox("📅 Select Match Day", unique_dates, 
+                                     index=unique_dates.index(today_val) if today_val in unique_dates else 0)
+            display_df = m_df[m_df['Date'] == view_date]
+        else:
+            st.error("Sheet missing 'Date' column!")
+            display_df = m_df
+
         open_matches_list = []
 
-        for _, row in m_df.iterrows():
+        for _, row in display_df.iterrows():
             m_id = str(row['Match_ID'])
+            # HIDE if results exist (Match Closed)
             is_closed = m_id in r_df['Match_ID'].astype(str).values if not r_df.empty else False
+            if is_closed:
+                continue
+                
             user_preds = p_df[p_df['Username'] == st.session_state['username']]
             already_done = m_id in user_preds['Match_ID'].astype(str).values if not user_preds.empty else False
             
@@ -136,24 +150,19 @@ if page == "Predictions":
                     </div>
                 """, unsafe_allow_html=True)
 
-                if is_closed:
-                    st.info("Match Closed")
-                elif already_done:
+                if already_done:
                     st.success("Locked In ✅")
                 else:
                     open_matches_list.append(m_id)
                     c1, c2 = st.columns(2)
-                    with c1: 
-                        s1 = st.selectbox(f"{row['Player1']}", range(11), key=f"s1_{m_id}")
-                    with c2: 
-                        s2 = st.selectbox(f"{row['Player2']}", range(11), key=f"s2_{m_id}")
+                    with c1: s1 = st.selectbox(f"{row['Player1']}", range(11), key=f"s1_{m_id}")
+                    with c2: s2 = st.selectbox(f"{row['Player2']}", range(11), key=f"s2_{m_id}")
                     st.session_state.temp_preds[m_id] = f"{s1}-{s2}"
 
         if open_matches_list:
             st.divider()
-            st.write(f"📋 You have **{len(open_matches_list)}** matches ready to lock.")
             if st.button("🔒 LOCK ALL PREDICTIONS"):
-                with st.spinner("Saving to Google Sheets..."):
+                with st.spinner("Saving..."):
                     try:
                         new_data = []
                         for m_id in open_matches_list:
@@ -170,7 +179,7 @@ if page == "Predictions":
                         time.sleep(1.5)
                         st.rerun()
                     except:
-                        st.error("Google busy. Try again in a moment.")
+                        st.error("Google busy. Try again.")
 
 # --- PAGE: LEADERBOARD ---
 elif page == "Leaderboard":
