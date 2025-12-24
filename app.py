@@ -27,43 +27,35 @@ def apply_pro_styling():
                         url("https://cdn.images.express.co.uk/img/dynamic/4/590x/secondary/5856693.jpg?r=1735554407217");
             background-size: cover; background-position: center; background-attachment: fixed;
         }}
-        h1, h2, h3, p {{ color: white !important; }}
+        h1, h2, h3, p, span {{ color: white !important; }}
         
-        /* SIDEBAR STYLING */
-        [data-testid="stSidebarContent"] {{ 
-            background-color: #111111 !important; 
-        }}
+        /* SIDEBAR CONTENT */
+        [data-testid="stSidebarContent"] {{ background-color: #111111 !important; }}
         
-        /* SPECIFIC SIDEBAR TOGGLE FIX */
-        /* This Targets ONLY the collapse/expand button using its unique data-testid */
-        [data-testid="stSidebarCollapsedControl"] {{
-            background-color: #ffd700 !important;
-            border-radius: 0 12px 12px 0 !important;
-            width: 60px !important;
-            height: 60px !important;
-            left: 0px !important;
-            top: 15px !important;
-            position: fixed !important;
-            z-index: 1000000 !important;
-            display: flex !important;
-            align-items: center !important;
-            justify-content: center !important;
-            box-shadow: 4px 0px 10px rgba(0,0,0,0.5) !important;
-        }}
-
-        /* Make the chevron/hamburger icon black and larger */
-        [data-testid="stSidebarCollapsedControl"] svg {{
-            fill: #000000 !important;
-            width: 35px !important;
-            height: 35px !important;
-        }}
-
-        /* RESET the top-right buttons to default so they don't look broken */
+        /* STABLE SIDEBAR BUTTON FIX */
+        /* We use transform scale to make it bigger without moving its 'home' position */
         [data-testid="stHeader"] {{
             background: transparent !important;
         }}
-        
-        /* The Match Card - 0.5 Gradient & Paddy Power URL */
+
+        /* Specifically targets the sidebar toggle button area */
+        [data-testid="stSidebarCollapsedControl"] {{
+            transform: scale(1.5) !important; /* Makes the button 50% larger */
+            transform-origin: left center !important;
+            margin-left: 20px !important;
+            background-color: #ffd700 !important;
+            border-radius: 8px !important;
+            padding: 5px !important;
+            border: 1px solid black !important;
+        }}
+
+        /* Make the icon inside pure black */
+        [data-testid="stSidebarCollapsedControl"] svg {{
+            fill: black !important;
+            color: black !important;
+        }}
+
+        /* The Match Card - 0.5 Gradient & Paddy Power Ally Pally URL */
         [data-testid="stVerticalBlock"] > div:has(.match-wrapper) {{
             border: 2px solid #ffd700 !important;
             border-radius: 20px !important;
@@ -77,7 +69,7 @@ def apply_pro_styling():
         
         .match-wrapper {{ display: flex; align-items: center; justify-content: space-between; width: 100%; gap: 15px; }}
         .player-box {{ flex: 1; text-align: center; }}
-        .player-img {{ width: 100%; max-width: 180px; border-radius: 10px; border: none !important; }}
+        .player-img {{ width: 100%; max-width: 180px; border-radius: 10px; }}
         .vs-text-styled {{ color: #ffd700 !important; font-size: 2.2rem !important; font-weight: 900 !important; text-shadow: 3px 3px 6px #000; }}
         .player-name-styled {{ font-size: 1.4rem !important; font-weight: 900 !important; color: #ffd700 !important; text-shadow: 3px 3px 6px #000; }}
         
@@ -97,7 +89,6 @@ def apply_pro_styling():
             font-weight: bold !important;
             width: 100% !important;
             border-radius: 12px !important;
-            height: 3.8em !important;
         }}
         </style>
         """,
@@ -106,4 +97,4 @@ def apply_pro_styling():
 
 apply_pro_styling()
 
-# --- Logic remains unchanged ---
+# --- Rest of your code follows ---
