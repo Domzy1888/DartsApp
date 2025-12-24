@@ -2,7 +2,7 @@ import streamlit as st
 from streamlit_gsheets import GSheetsConnection
 import pandas as pd
 import time
-from datetime import date
+from datetime import datetime
 
 # 1. Page Configuration
 st.set_page_config(page_title="Darts Predictor Pro", page_icon="🎯", layout="wide")
@@ -46,6 +46,14 @@ def apply_pro_styling():
             color: #ffd700 !important; margin-top: 8px; text-align: center; 
         }}
         
+        .countdown-text {{
+            color: #ffd700;
+            font-size: 0.85rem;
+            text-align: center;
+            font-weight: bold;
+            margin-bottom: 5px;
+        }}
+
         div.stButton > button {{
             background-color: #ffd700 !important;
             color: #000 !important;
@@ -108,14 +116,15 @@ if page == "Predictions":
         p_df = get_data("Predictions")
         r_df = get_data("Results")
 
+        now = datetime.now()
+
         # Date Filtering Logic
         if 'Date' in m_df.columns:
-            m_df['Date'] = pd.to_datetime(m_df['Date']).dt.date
-            unique_dates = sorted(m_df['Date'].unique())
-            today_val = date.today()
+            m_df['Date_Parsed'] = pd.to_datetime(m_df['Date'])
+            unique_dates = sorted(m_df['Date_Parsed'].dt.date.unique())
             view_date = st.selectbox("📅 Select Match Day", unique_dates, 
-                                     index=unique_dates.index(today_val) if today_val in unique_dates else 0)
-            display_df = m_df[m_df['Date'] == view_date]
+                                     index=unique_dates.index(now.date()) if now.date() in unique_dates else 0)
+            display_df = m_df[m_df['Date_Parsed'].dt.date == view_date]
         else:
             st.error("Sheet missing 'Date' column!")
             display_df = m_df
@@ -124,15 +133,26 @@ if page == "Predictions":
 
         for _, row in display_df.iterrows():
             m_id = str(row['Match_ID'])
-            # HIDE if results exist (Match Closed)
             is_closed = m_id in r_df['Match_ID'].astype(str).values if not r_df.empty else False
-            if is_closed:
-                continue
+            if is_closed: continue
                 
             user_preds = p_df[p_df['Username'] == st.session_state['username']]
             already_done = m_id in user_preds['Match_ID'].astype(str).values if not user_preds.empty else False
             
+            # Time Logic
+            match_time = pd.to_datetime(row['Date'])
+            time_diff = match_time - now
+            is_locked_by_time = time_diff.total_seconds() < 0
+
             with st.container():
+                # Countdown display
+                if not already_done and not is_locked_by_time:
+                    hours, remainder = divmod(int(time_diff.total_seconds()), 3600)
+                    minutes, _ = divmod(remainder, 60)
+                    st.markdown(f'<div class="countdown-text">Starts in: {hours}h {minutes}m</div>', unsafe_allow_html=True)
+                elif is_locked_by_time and not already_done:
+                    st.markdown('<div class="countdown-text" style="color:#ff4b4b;">🔒 Entry Closed (Match Started)</div>', unsafe_allow_html=True)
+
                 p1_img = row['P1_Image'] if pd.notna(row['P1_Image']) else "https://via.placeholder.com/150"
                 p2_img = row['P2_Image'] if pd.notna(row['P2_Image']) else "https://via.placeholder.com/150"
                 
@@ -152,7 +172,7 @@ if page == "Predictions":
 
                 if already_done:
                     st.success("Locked In ✅")
-                else:
+                elif not is_locked_by_time:
                     open_matches_list.append(m_id)
                     c1, c2 = st.columns(2)
                     with c1: s1 = st.selectbox(f"{row['Player1']}", range(11), key=f"s1_{m_id}")
