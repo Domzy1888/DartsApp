@@ -16,7 +16,7 @@ URL = st.secrets["connections"]["gsheets"]["spreadsheet"]
 def get_data(worksheet):
     return conn.read(spreadsheet=URL, worksheet=worksheet, ttl=0)
 
-# 4. Pro Styling
+# 4. Pro Styling (Includes Digital Timer CSS)
 def apply_pro_styling():
     st.markdown(
         f"""
@@ -32,7 +32,7 @@ def apply_pro_styling():
         [data-testid="stVerticalBlock"] > div:has(.match-wrapper) {{
             border: 2px solid #ffd700 !important;
             border-radius: 15px !important;
-            background-color: rgba(20, 20, 20, 0.85) !important;
+            background-color: rgba(20, 20, 20, 0.9) !important;
             padding: 15px !important; margin-bottom: 20px !important;
         }}
         
@@ -46,13 +46,27 @@ def apply_pro_styling():
             color: #ffd700 !important; margin-top: 8px; text-align: center; 
         }}
         
-        .countdown-text {{
-            color: #ffd700;
-            font-size: 0.85rem;
-            text-align: center;
+        /* Digital Timer Styling */
+        .digital-timer {{
+            background-color: #000;
+            border: 2px solid #333;
+            border-radius: 8px;
+            font-family: 'Courier New', Courier, monospace;
             font-weight: bold;
-            margin-bottom: 5px;
+            font-size: 1.1rem;
+            padding: 6px 12px;
+            display: inline-block;
+            margin-bottom: 10px;
+            text-align: center;
         }}
+
+        /* Animation for urgent timers */
+        @keyframes pulse {{
+            0% {{ opacity: 1; }}
+            50% {{ opacity: 0.5; }}
+            100% {{ opacity: 1; }}
+        }}
+        .pulse {{ animation: pulse 1s infinite; }}
 
         div.stButton > button {{
             background-color: #ffd700 !important;
@@ -142,16 +156,39 @@ if page == "Predictions":
             # Time Logic
             match_time = pd.to_datetime(row['Date'])
             time_diff = match_time - now
-            is_locked_by_time = time_diff.total_seconds() < 0
+            seconds_left = time_diff.total_seconds()
+            is_locked_by_time = seconds_left < 0
 
             with st.container():
-                # Countdown display
+                # Countdown Display Logic
                 if not already_done and not is_locked_by_time:
-                    hours, remainder = divmod(int(time_diff.total_seconds()), 3600)
+                    hours, remainder = divmod(int(seconds_left), 3600)
                     minutes, _ = divmod(remainder, 60)
-                    st.markdown(f'<div class="countdown-text">Starts in: {hours}h {minutes}m</div>', unsafe_allow_html=True)
+                    
+                    # Color Logic
+                    timer_color = "#00FF00"  # Green Default
+                    timer_class = ""
+                    if seconds_left < 600:  # Under 10 mins (Red & Pulsing)
+                        timer_color = "#FF0000"
+                        timer_class = "pulse"
+                    elif seconds_left < 1800:  # Under 30 mins (Orange)
+                        timer_color = "#FFA500"
+                    
+                    st.markdown(f"""
+                        <div style="text-align: center;">
+                            <div class="digital-timer {timer_class}" style="color: {timer_color}; border-color: {timer_color}44;">
+                                ⏱️ {hours:02d}:{minutes:02d} TO START
+                            </div>
+                        </div>
+                    """, unsafe_allow_html=True)
                 elif is_locked_by_time and not already_done:
-                    st.markdown('<div class="countdown-text" style="color:#ff4b4b;">🔒 Entry Closed (Match Started)</div>', unsafe_allow_html=True)
+                    st.markdown(f"""
+                        <div style="text-align: center;">
+                            <div class="digital-timer" style="color: #666; border-color: #222;">
+                                🔒 ENTRY CLOSED
+                            </div>
+                        </div>
+                    """, unsafe_allow_html=True)
 
                 p1_img = row['P1_Image'] if pd.notna(row['P1_Image']) else "https://via.placeholder.com/150"
                 p2_img = row['P2_Image'] if pd.notna(row['P2_Image']) else "https://via.placeholder.com/150"
@@ -201,7 +238,7 @@ if page == "Predictions":
                     except:
                         st.error("Google busy. Try again.")
 
-# --- PAGE: LEADERBOARD ---
+# --- LEADERBOARD ---
 elif page == "Leaderboard":
     st.title("🏆 Leaderboard")
     p_df = get_data("Predictions")
@@ -210,16 +247,18 @@ elif page == "Leaderboard":
         p_df = p_df.drop_duplicates(subset=['Username', 'Match_ID'], keep='last')
         merged = p_df.merge(r_df, on="Match_ID", suffixes=('_u', '_r'))
         def calc(r):
-            u1, u2 = map(int, str(r['Score_u']).split('-'))
-            r1, r2 = map(int, str(r['Score_r']).split('-'))
-            if u1 == r1 and u2 == r2: return 3
-            if (u1 > u2 and r1 > r2) or (u1 < u2 and r1 < r2): return 1
+            try:
+                u1, u2 = map(int, str(r['Score_u']).split('-'))
+                r1, r2 = map(int, str(r['Score_r']).split('-'))
+                if u1 == r1 and u2 == r2: return 3
+                if (u1 > u2 and r1 > r2) or (u1 < u2 and r1 < r2): return 1
+            except: pass
             return 0
         merged['Pts'] = merged.apply(calc, axis=1)
         lb = merged.groupby('Username')['Pts'].sum().reset_index().sort_values('Pts', ascending=False)
         st.table(lb)
 
-# --- PAGE: RIVAL WATCH ---
+# --- RIVAL WATCH ---
 elif page == "Rival Watch":
     st.title("👀 Rival Watch")
     m_df = get_data("Matches")
@@ -232,7 +271,7 @@ elif page == "Rival Watch":
         if not match_p.empty:
             st.table(match_p[['Username', 'Score']].set_index('Username'))
 
-# --- PAGE: ADMIN ---
+# --- ADMIN ---
 elif page == "Admin":
     st.title("⚙️ Admin Hub")
     if st.text_input("Admin Key", type="password") == "darts2025":
