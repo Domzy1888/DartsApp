@@ -34,29 +34,35 @@ def apply_pro_styling():
             background-color: #111111 !important; 
         }}
         
-        /* ENHANCED SIDEBAR TOGGLE - Larger & Gold */
-        /* Targets the button specifically to increase size and change color */
-        [data-testid="stHeader"] button {{
+        /* SPECIFIC SIDEBAR TOGGLE FIX */
+        /* This Targets ONLY the collapse/expand button using its unique data-testid */
+        [data-testid="stSidebarCollapsedControl"] {{
             background-color: #ffd700 !important;
-            border-radius: 8px !important;
-            width: 50px !important;
-            height: 50px !important;
+            border-radius: 0 12px 12px 0 !important;
+            width: 60px !important;
+            height: 60px !important;
+            left: 0px !important;
+            top: 15px !important;
+            position: fixed !important;
+            z-index: 1000000 !important;
             display: flex !important;
             align-items: center !important;
             justify-content: center !important;
-            border: 2px solid #000 !important;
-            margin-left: 10px !important;
-            margin-top: 5px !important;
+            box-shadow: 4px 0px 10px rgba(0,0,0,0.5) !important;
         }}
 
-        /* Targets the SVG icon inside the button to make it black and bold */
-        [data-testid="stHeader"] button svg {{
+        /* Make the chevron/hamburger icon black and larger */
+        [data-testid="stSidebarCollapsedControl"] svg {{
             fill: #000000 !important;
-            stroke: #000000 !important;
-            width: 30px !important;
-            height: 30px !important;
+            width: 35px !important;
+            height: 35px !important;
         }}
 
+        /* RESET the top-right buttons to default so they don't look broken */
+        [data-testid="stHeader"] {{
+            background: transparent !important;
+        }}
+        
         /* The Match Card - 0.5 Gradient & Paddy Power URL */
         [data-testid="stVerticalBlock"] > div:has(.match-wrapper) {{
             border: 2px solid #ffd700 !important;
@@ -67,31 +73,13 @@ def apply_pro_styling():
             background-position: center;
             padding: 20px !important; 
             margin-bottom: 25px !important;
-            box-shadow: 0 10px 30px rgba(0,0,0,0.6);
         }}
         
         .match-wrapper {{ display: flex; align-items: center; justify-content: space-between; width: 100%; gap: 15px; }}
         .player-box {{ flex: 1; text-align: center; }}
-        
-        .player-img {{ 
-            width: 100%; 
-            max-width: 180px; 
-            border-radius: 10px; 
-            border: none !important;
-        }}
-        
-        .vs-text-styled {{ 
-            color: #ffd700 !important; 
-            font-size: 2.2rem !important; 
-            font-weight: 900 !important; 
-            text-shadow: 3px 3px 6px #000; 
-        }}
-        
-        .player-name-styled {{ 
-            font-size: 1.4rem !important; font-weight: 900 !important; 
-            color: #ffd700 !important; margin-top: 10px;
-            text-shadow: 3px 3px 6px #000;
-        }}
+        .player-img {{ width: 100%; max-width: 180px; border-radius: 10px; border: none !important; }}
+        .vs-text-styled {{ color: #ffd700 !important; font-size: 2.2rem !important; font-weight: 900 !important; text-shadow: 3px 3px 6px #000; }}
+        .player-name-styled {{ font-size: 1.4rem !important; font-weight: 900 !important; color: #ffd700 !important; text-shadow: 3px 3px 6px #000; }}
         
         .digital-timer {{
             background-color: rgba(0, 0, 0, 0.85);
@@ -110,10 +98,7 @@ def apply_pro_styling():
             width: 100% !important;
             border-radius: 12px !important;
             height: 3.8em !important;
-            border: none !important;
         }}
-        
-        div[data-baseweb="select"] > div {{ background-color: #222 !important; color: white !important; border: 1px solid #444 !important; }}
         </style>
         """,
         unsafe_allow_html=True
@@ -122,4 +107,3 @@ def apply_pro_styling():
 apply_pro_styling()
 
 # --- Logic remains unchanged ---
-# (Session state, sidebar, and pages continue here...)
