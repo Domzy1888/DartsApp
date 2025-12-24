@@ -30,13 +30,18 @@ def apply_pro_styling():
         h1, h2, h3, p {{ color: white !important; }}
         [data-testid="stSidebarContent"] {{ background-color: #111111 !important; }}
         
-        /* THE SIDEBAR TAB - Force Visibility */
-        button[kind="headerNoPadding"] {{
+        /* THE SIDEBAR TAB FIX - Shifted down to avoid overlap */
+        [data-testid="stHeader"] {{
+            background: transparent !important;
+        }}
+
+        [data-testid="stSidebarCollapsedControl"] {{
             background-color: #ffd700 !important;
             border-radius: 0 10px 10px 0 !important;
             width: 55px !important;
             height: 55px !important;
             left: 0px !important;
+            top: 70px !important; /* Shifted down to avoid the 3-dot menu */
             position: fixed !important;
             z-index: 999999 !important;
             display: flex !important;
@@ -46,14 +51,13 @@ def apply_pro_styling():
         }}
         
         /* Ensure the icon is visible and black */
-        button[kind="headerNoPadding"] svg {{
+        [data-testid="stSidebarCollapsedControl"] svg {{
             fill: #000000 !important;
-            stroke: #000000 !important;
-            width: 35px !important;
-            height: 35px !important;
+            width: 30px !important;
+            height: 30px !important;
         }}
 
-        /* The Match Card - 0.5 Gradient & Custom URL */
+        /* The Match Card - 0.5 Gradient & Custom Paddy Power URL */
         [data-testid="stVerticalBlock"] > div:has(.match-wrapper) {{
             border: 2px solid #ffd700 !important;
             border-radius: 20px !important;
