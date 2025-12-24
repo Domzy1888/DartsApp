@@ -17,7 +17,7 @@ def apply_pro_styling():
         /* Force background visibility */
         .stApp {
             background: linear-gradient(rgba(0,0,0,0.7), rgba(0,0,0,0.7)), 
-                        url("https://cdn.pixabay.com/photo/2020/03/10/16/47/darts-4919501_1280.jpg");
+                        url("https://cdn.images.express.co.uk/img/dynamic/4/590x/secondary/5856693.jpg?r=1735554407217");
             background-size: cover;
             background-position: center;
             background-attachment: fixed;
