@@ -115,7 +115,6 @@ if page == "Predictions":
         for _, row in m_df.iterrows():
             m_id = str(row['Match_ID'])
             is_closed = m_id in r_df['Match_ID'].astype(str).values if not r_df.empty else False
-            # Filter duplicates if they exist
             user_preds = p_df[p_df['Username'] == st.session_state['username']]
             already_done = m_id in user_preds['Match_ID'].astype(str).values if not user_preds.empty else False
             
@@ -144,5 +143,78 @@ if page == "Predictions":
                 else:
                     open_matches_list.append(m_id)
                     c1, c2 = st.columns(2)
-                    with c1: s1 = st.selectbox(f"{row['Player1']}", range(11), key=f"s1_{m_id}")
-                    with c2: s2 = st.selectbox(f"{row['Player2']}", range(11), key
+                    with c1: 
+                        s1 = st.selectbox(f"{row['Player1']}", range(11), key=f"s1_{m_id}")
+                    with c2: 
+                        s2 = st.selectbox(f"{row['Player2']}", range(11), key=f"s2_{m_id}")
+                    st.session_state.temp_preds[m_id] = f"{s1}-{s2}"
+
+        if open_matches_list:
+            st.divider()
+            st.write(f"📋 You have **{len(open_matches_list)}** matches ready to lock.")
+            if st.button("🔒 LOCK ALL PREDICTIONS"):
+                with st.spinner("Saving to Google Sheets..."):
+                    try:
+                        new_data = []
+                        for m_id in open_matches_list:
+                            score = st.session_state.temp_preds.get(m_id, "0-0")
+                            new_data.append({"Username": st.session_state['username'], "Match_ID": m_id, "Score": score})
+                        
+                        current_p = conn.read(spreadsheet=URL, worksheet="Predictions", ttl=0)
+                        final_p = pd.concat([current_p, pd.DataFrame(new_data)], ignore_index=True)
+                        conn.update(spreadsheet=URL, worksheet="Predictions", data=final_p)
+                        
+                        st.session_state.temp_preds = {}
+                        st.cache_data.clear()
+                        st.success("All Scores Locked! ✅")
+                        time.sleep(1.5)
+                        st.rerun()
+                    except:
+                        st.error("Google busy. Try again in a moment.")
+
+# --- PAGE: LEADERBOARD ---
+elif page == "Leaderboard":
+    st.title("🏆 Leaderboard")
+    p_df = get_data("Predictions")
+    r_df = get_data("Results")
+    if not r_df.empty and not p_df.empty:
+        p_df = p_df.drop_duplicates(subset=['Username', 'Match_ID'], keep='last')
+        merged = p_df.merge(r_df, on="Match_ID", suffixes=('_u', '_r'))
+        def calc(r):
+            u1, u2 = map(int, str(r['Score_u']).split('-'))
+            r1, r2 = map(int, str(r['Score_r']).split('-'))
+            if u1 == r1 and u2 == r2: return 3
+            if (u1 > u2 and r1 > r2) or (u1 < u2 and r1 < r2): return 1
+            return 0
+        merged['Pts'] = merged.apply(calc, axis=1)
+        lb = merged.groupby('Username')['Pts'].sum().reset_index().sort_values('Pts', ascending=False)
+        st.table(lb)
+
+# --- PAGE: RIVAL WATCH ---
+elif page == "Rival Watch":
+    st.title("👀 Rival Watch")
+    m_df = get_data("Matches")
+    p_df = get_data("Predictions")
+    if not m_df.empty:
+        m_sel = st.selectbox("Pick a Match:", m_df['Match_ID'].astype(str) + ": " + m_df['Player1'] + " vs " + m_df['Player2'])
+        mid = m_sel.split(":")[0]
+        p_df = p_df.drop_duplicates(subset=['Username', 'Match_ID'], keep='last')
+        match_p = p_df[p_df['Match_ID'].astype(str) == mid]
+        if not match_p.empty:
+            st.table(match_p[['Username', 'Score']].set_index('Username'))
+
+# --- PAGE: ADMIN ---
+elif page == "Admin":
+    st.title("⚙️ Admin Hub")
+    if st.text_input("Admin Key", type="password") == "darts2025":
+        m_df = get_data("Matches")
+        target = st.selectbox("Select Match", m_df['Match_ID'].astype(str) + ": " + m_df['Player1'] + " vs " + m_df['Player2'])
+        c1, c2 = st.columns(2)
+        with c1: r1 = st.selectbox("Actual P1", range(11))
+        with c2: r2 = st.selectbox("Actual P2", range(11))
+        if st.button("Finalize Result"):
+            old_res = conn.read(spreadsheet=URL, worksheet="Results", ttl=0)
+            new_res = pd.DataFrame([{"Match_ID": target.split(":")[0], "Score": f"{r1}-{r2}"}])
+            conn.update(spreadsheet=URL, worksheet="Results", data=pd.concat([old_res, new_res], ignore_index=True))
+            st.cache_data.clear()
+            st.success("Result Published!")
