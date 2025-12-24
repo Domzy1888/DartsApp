@@ -37,7 +37,7 @@ def apply_pro_styling():
             background-color: #111 !important;
             /* REPLACE THE URL BELOW WITH YOUR CHOSEN IMAGE */
             background-image: linear-gradient(rgba(0,0,0,0.75), rgba(0,0,0,0.75)), 
-                              url("PASTE_YOUR_IMAGE_URL_HERE");
+                              url("https://news.paddypower.com/assets/uploads/2023/12/Paddy-Power-World-Darts-Championship.jpg");
             background-size: cover;
             background-position: center;
             padding: 20px !important; 
