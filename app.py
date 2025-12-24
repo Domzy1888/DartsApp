@@ -21,49 +21,49 @@ def apply_pro_styling():
     st.markdown(
         f"""
         <style>
-        /* Main App Background */
+        /* Main App Background - 0.5 Gradient */
         .stApp {{
-            background: linear-gradient(rgba(0,0,0,0.85), rgba(0,0,0,0.85)), 
+            background: linear-gradient(rgba(0,0,0,0.5), rgba(0,0,0,0.5)), 
                         url("https://cdn.images.express.co.uk/img/dynamic/4/590x/secondary/5856693.jpg?r=1735554407217");
             background-size: cover; background-position: center; background-attachment: fixed;
         }}
         h1, h2, h3, p {{ color: white !important; }}
         [data-testid="stSidebarContent"] {{ background-color: #111111 !important; }}
         
-        /* THE SIDEBAR BUTTON UPGRADE */
-        /* This targets the button that opens/closes the sidebar */
-        [data-testid="stSidebarCollapsedControl"] {{
+        /* THE SIDEBAR TAB - Force Visibility */
+        button[kind="headerNoPadding"] {{
             background-color: #ffd700 !important;
-            color: #000 !important;
-            border-radius: 0 10px 10px 0 !important; /* Makes it look like a tab */
-            width: 50px !important;
-            height: 50px !important;
+            border-radius: 0 10px 10px 0 !important;
+            width: 55px !important;
+            height: 55px !important;
+            left: 0px !important;
+            position: fixed !important;
+            z-index: 999999 !important;
             display: flex !important;
             align-items: center !important;
             justify-content: center !important;
-            box-shadow: 2px 2px 10px rgba(0,0,0,0.5) !important;
-            top: 10px !important;
+            box-shadow: 4px 0px 10px rgba(0,0,0,0.5) !important;
         }}
         
-        /* Make the icon inside the button black so it's visible */
-        [data-testid="stSidebarCollapsedControl"] svg {{
-            fill: black !important;
-            width: 30px !important;
-            height: 30px !important;
+        /* Ensure the icon is visible and black */
+        button[kind="headerNoPadding"] svg {{
+            fill: #000000 !important;
+            stroke: #000000 !important;
+            width: 35px !important;
+            height: 35px !important;
         }}
 
-        /* The Match Card */
+        /* The Match Card - 0.5 Gradient & Custom URL */
         [data-testid="stVerticalBlock"] > div:has(.match-wrapper) {{
             border: 2px solid #ffd700 !important;
             border-radius: 20px !important;
-            background-color: #111 !important;
-            background-image: linear-gradient(rgba(0,0,0,0.75), rgba(0,0,0,0.75)), 
-                              url("PASTE_YOUR_IMAGE_URL_HERE");
+            background-image: linear-gradient(rgba(0,0,0,0.5), rgba(0,0,0,0.5)), 
+                              url("https://news.paddypower.com/assets/uploads/2023/12/Paddy-Power-World-Darts-Championship.jpg");
             background-size: cover;
             background-position: center;
             padding: 20px !important; 
             margin-bottom: 25px !important;
-            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+            box-shadow: 0 10px 30px rgba(0,0,0,0.6);
         }}
         
         .match-wrapper {{ display: flex; align-items: center; justify-content: space-between; width: 100%; gap: 15px; }}
@@ -77,17 +77,24 @@ def apply_pro_styling():
             background: transparent !important;
         }}
         
-        .vs-text-styled {{ color: #ffd700 !important; font-size: 2rem !important; font-weight: 900 !important; flex: 0.4; text-align: center; text-shadow: 2px 2px 4px #000; }}
+        .vs-text-styled {{ 
+            color: #ffd700 !important; 
+            font-size: 2.2rem !important; 
+            font-weight: 900 !important; 
+            flex: 0.4; 
+            text-align: center; 
+            text-shadow: 3px 3px 6px #000; 
+        }}
         
         .player-name-styled {{ 
-            font-size: 1.3rem !important; font-weight: 900 !important; 
+            font-size: 1.4rem !important; font-weight: 900 !important; 
             color: #ffd700 !important; margin-top: 10px; text-align: center;
-            text-shadow: 2px 2px 4px #000;
+            text-shadow: 3px 3px 6px #000;
         }}
         
         .digital-timer {{
-            background-color: rgba(0, 0, 0, 0.9);
-            border: 2px solid #333;
+            background-color: rgba(0, 0, 0, 0.85);
+            border: 2px solid #ffd700;
             border-radius: 8px;
             font-family: 'Courier New', Courier, monospace;
             font-weight: bold;
@@ -187,9 +194,9 @@ if page == "Predictions":
                     h, rem = divmod(int(seconds_left), 3600); m, _ = divmod(rem, 60)
                     t_clr = "#00FF00" if seconds_left > 1800 else "#FFA500" if seconds_left > 600 else "#FF0000"
                     t_cls = "pulse" if seconds_left < 600 else ""
-                    st.markdown(f'<div style="text-align: center;"><div class="digital-timer {t_cls}" style="color: {t_clr}; border-color: {t_clr}66;">⏱️ {h:02d}:{m:02d} TO START</div></div>', unsafe_allow_html=True)
+                    st.markdown(f'<div style="text-align: center;"><div class="digital-timer {t_cls}" style="color: {t_clr};">⏱️ {h:02d}:{m:02d} TO START</div></div>', unsafe_allow_html=True)
                 elif is_locked_by_time and not already_done:
-                    st.markdown(f'<div style="text-align: center;"><div class="digital-timer" style="color: #666; border-color: #222;">🔒 ENTRY CLOSED</div></div>', unsafe_allow_html=True)
+                    st.markdown(f'<div style="text-align: center;"><div class="digital-timer" style="color: #ff4b4b;">🔒 ENTRY CLOSED</div></div>', unsafe_allow_html=True)
 
                 p1_img = row['P1_Image'] if pd.notna(row['P1_Image']) else "https://via.placeholder.com/150"
                 p2_img = row['P2_Image'] if pd.notna(row['P2_Image']) else "https://via.placeholder.com/150"
