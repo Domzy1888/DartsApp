@@ -9,74 +9,86 @@ st.set_page_config(page_title="Darts Predictor Pro", page_icon="🎯", layout="w
 conn = st.connection("gsheets", type=GSheetsConnection)
 URL = st.secrets["connections"]["gsheets"]["spreadsheet"]
 
-# 3. ADVANCED CSS: Mobile Container & Background Fix
+# 3. ADVANCED MOBILE-FIRST STYLING
 def apply_pro_styling():
     st.markdown(
         f"""
         <style>
-        /* Force background with your requested URL */
+        /* Background & Global Text */
         .stApp {{
             background: linear-gradient(rgba(0,0,0,0.8), rgba(0,0,0,0.8)), 
                         url("https://cdn.images.express.co.uk/img/dynamic/4/590x/secondary/5856693.jpg?r=1735554407217");
             background-size: cover;
             background-position: center;
-            background-attachment: scroll;
+            background-attachment: fixed;
         }}
 
-        /* Header Fix */
-        h1, h2, h3, .stMarkdown p {{
+        h1, h2, h3, p, [data-testid="stMarkdownContainer"] p {{
             color: white !important;
         }}
 
-        /* Sidebar Fixes */
-        [data-testid="stSidebarContent"] {{
-            background-color: #111111 !important;
-        }}
+        /* Sidebar Styling */
+        [data-testid="stSidebarContent"] {{ background-color: #111111 !important; }}
         [data-testid="stSidebar"] label p, [data-testid="stSidebar"] p {{
             color: white !important;
             font-weight: bold !important;
         }}
 
-        /* FIX: The Gold Border Container */
-        /* We target the specific container type Streamlit uses for our cards */
-        [data-testid="stVerticalBlock"] > div:has(div.match-card) {{
+        /* The Gold Match Card Container */
+        /* Targets the Streamlit Container directly to prevent ghost borders */
+        [data-testid="stVerticalBlock"] > div:has(.match-wrapper) {{
             border: 2px solid #ffd700 !important;
             border-radius: 15px !important;
             background-color: rgba(20, 20, 20, 0.85) !important;
-            padding: 20px !important;
-            margin-bottom: 25px !important;
+            padding: 15px !important;
+            margin-bottom: 20px !important;
         }}
 
-        /* Inner card content - removal of border here to avoid double lines */
-        .match-card {{
-            color: white !important;
+        /* Forced Side-by-Side Layout (Flexbox) */
+        .match-wrapper {{
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            width: 100%;
+            gap: 5px;
+        }}
+
+        .player-box {{
+            flex: 1;
             text-align: center;
         }}
 
-        .player-label {{
-            font-size: 1.3rem;
-            font-weight: bold;
-            color: white !important;
-            margin-top: 10px;
+        .player-img {{
+            width: 100%;
+            max-width: 120px; /* Limits size on desktop */
+            height: auto;
+            border-radius: 10px;
         }}
 
-        .vs-text {{
+        .vs-text-styled {{
             color: #ffd700 !important;
-            font-size: 2.2rem;
-            font-weight: 900;
-            text-shadow: 2px 2px 4px #000;
+            font-size: 1.8rem !important;
+            font-weight: 900 !important;
+            flex: 0.5;
+            text-align: center;
         }}
 
-        /* High-Contrast Gold Button */
+        .player-name-styled {{
+            font-size: 0.9rem;
+            font-weight: bold;
+            margin-top: 5px;
+        }}
+
+        /* Lock Button Styling */
         div.stButton > button {{
             background-color: #ffd700 !important;
             color: #000000 !important;
             font-weight: bold !important;
             width: 100% !important;
             border-radius: 10px !important;
-            border: none !important;
-            height: 3.5em !important;
+            height: 3em !important;
             margin-top: 10px !important;
+            border: none !important;
         }}
 
         /* Dropdown Fix */
@@ -100,7 +112,6 @@ st.sidebar.title("🎯 PDC PREDICTOR")
 
 if st.session_state['username'] == "":
     auth_mode = st.sidebar.radio("Entry", ["Login", "Register"])
-    
     if auth_mode == "Register":
         new_user = st.sidebar.text_input("New Username").strip()
         new_pwd = st.sidebar.text_input("New Password", type="password")
@@ -112,7 +123,6 @@ if st.session_state['username'] == "":
                 reg_df = pd.DataFrame([{"Username": new_user, "Password": new_pwd}])
                 conn.update(spreadsheet=URL, worksheet="Users", data=pd.concat([user_df, reg_df], ignore_index=True))
                 st.sidebar.success("Success! Login now.")
-    
     else:
         u_attempt = st.sidebar.text_input("Username").strip()
         p_attempt = st.sidebar.text_input("Password", type="password")
@@ -124,7 +134,6 @@ if st.session_state['username'] == "":
                 st.rerun()
             else:
                 st.sidebar.error("Invalid Login")
-
 else:
     st.sidebar.write(f"Logged in: **{st.session_state['username']}**")
     if st.sidebar.button("Logout"):
@@ -150,45 +159,42 @@ if page == "Predictions":
             is_closed = m_id in results_df['Match_ID'].astype(str).values if not results_df.empty else False
             already_done = not preds_df[(preds_df['Username'] == st.session_state['username']) & (preds_df['Match_ID'].astype(str) == m_id)].empty if not preds_df.empty else False
 
-            # The card div is now inside the block we target with CSS
             with st.container():
-                st.markdown('<div class="match-card">', unsafe_allow_html=True)
+                # Custom HTML for forced side-by-side layout
+                p1_img = row['P1_Image'] if pd.notna(row['P1_Image']) else "https://via.placeholder.com/150"
+                p2_img = row['P2_Image'] if pd.notna(row['P2_Image']) else "https://via.placeholder.com/150"
                 
-                # Head to Head
-                c1, c2, c3 = st.columns([2, 1, 2])
-                with c1:
-                    img1 = row['P1_Image'] if pd.notna(row['P1_Image']) else "https://via.placeholder.com/150"
-                    st.image(img1)
-                    st.markdown(f"<div class='player-label'>{row['Player1']}</div>", unsafe_allow_html=True)
-                with c2:
-                    st.markdown("<div class='vs-text' style='text-align:center; padding-top:20px;'>VS</div>", unsafe_allow_html=True)
-                with c3:
-                    img2 = row['P2_Image'] if pd.notna(row['P2_Image']) else "https://via.placeholder.com/150"
-                    st.image(img2)
-                    st.markdown(f"<div class='player-label'>{row['Player2']}</div>", unsafe_allow_html=True)
+                st.markdown(f"""
+                    <div class="match-wrapper">
+                        <div class="player-box">
+                            <img src="{p1_img}" class="player-img">
+                            <div class="player-name-styled">{row['Player1']}</div>
+                        </div>
+                        <div class="vs-text-styled">VS</div>
+                        <div class="player-box">
+                            <img src="{p2_img}" class="player-img">
+                            <div class="player-name-styled">{row['Player2']}</div>
+                        </div>
+                    </div>
+                """, unsafe_allow_html=True)
 
                 if is_closed:
                     st.info("Match Closed")
                 elif already_done:
                     st.success("Locked In ✅")
                 else:
-                    # Dropdowns
                     sc1, sc2 = st.columns(2)
-                    with sc1: 
-                        s1 = st.selectbox(f"{row['Player1']} Score", range(11), key=f"s1_{m_id}")
-                    with sc2: 
-                        s2 = st.selectbox(f"{row['Player2']} Score", range(11), key=f"s2_{m_id}")
+                    with sc1: s1 = st.selectbox(f"{row['Player1']}", range(11), key=f"s1_{m_id}")
+                    with sc2: s2 = st.selectbox(f"{row['Player2']}", range(11), key=f"s2_{m_id}")
                     
-                    # Prediction Button
                     if st.button(f"LOCK PREDICTION: {row['Player1']} vs {row['Player2']}", key=f"btn_{m_id}"):
                         st.cache_data.clear()
                         current_preds = conn.read(spreadsheet=URL, worksheet="Predictions", ttl=0)
                         new_p = pd.DataFrame([{"Username": st.session_state['username'], "Match_ID": m_id, "Score": f"{s1}-{s2}"}])
                         conn.update(spreadsheet=URL, worksheet="Predictions", data=pd.concat([current_preds, new_p], ignore_index=True))
                         st.rerun()
-                st.markdown('</div>', unsafe_allow_html=True)
 
-# (Leaderboard, Rival Watch, and Admin code remains the same as your previous version)
+# --- (Other pages: Leaderboard/Rival Watch/Admin stay the same) ---
 elif page == "Leaderboard":
     st.title("Leaderboard")
     p_df = conn.read(spreadsheet=URL, worksheet="Predictions", ttl=60)
