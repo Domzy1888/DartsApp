@@ -16,28 +16,49 @@ URL = st.secrets["connections"]["gsheets"]["spreadsheet"]
 def get_data(worksheet):
     return conn.read(spreadsheet=URL, worksheet=worksheet, ttl=0)
 
-# 4. Pro Styling (Clean Cards, Large Players, Faded Background)
+# 4. Pro Styling
 def apply_pro_styling():
     st.markdown(
         f"""
         <style>
         /* Main App Background */
         .stApp {{
-            background: linear-gradient(rgba(0,0,0,0.5), rgba(0,0,0,0.5)), 
+            background: linear-gradient(rgba(0,0,0,0.85), rgba(0,0,0,0.85)), 
                         url("https://cdn.images.express.co.uk/img/dynamic/4/590x/secondary/5856693.jpg?r=1735554407217");
             background-size: cover; background-position: center; background-attachment: fixed;
         }}
         h1, h2, h3, p {{ color: white !important; }}
         [data-testid="stSidebarContent"] {{ background-color: #111111 !important; }}
         
+        /* THE SIDEBAR BUTTON UPGRADE */
+        /* This targets the button that opens/closes the sidebar */
+        [data-testid="stSidebarCollapsedControl"] {{
+            background-color: #ffd700 !important;
+            color: #000 !important;
+            border-radius: 0 10px 10px 0 !important; /* Makes it look like a tab */
+            width: 50px !important;
+            height: 50px !important;
+            display: flex !important;
+            align-items: center !important;
+            justify-content: center !important;
+            box-shadow: 2px 2px 10px rgba(0,0,0,0.5) !important;
+            top: 10px !important;
+        }}
+        
+        /* Make the icon inside the button black so it's visible */
+        [data-testid="stSidebarCollapsedControl"] svg {{
+            fill: black !important;
+            width: 30px !important;
+            height: 30px !important;
+        }}
+
         /* The Match Card */
         [data-testid="stVerticalBlock"] > div:has(.match-wrapper) {{
             border: 2px solid #ffd700 !important;
             border-radius: 20px !important;
             background-color: #111 !important;
-            /* REPLACE THE URL BELOW WITH YOUR CHOSEN IMAGE */
-            background-image: linear-gradient(rgba(0,0,0,0.5), rgba(0,0,0,0.5)), 
-                              url("https://news.paddypower.com/assets/uploads/2023/12/Paddy-Power-World-Darts-Championship.jpg");
+            background-image: linear-gradient(rgba(0,0,0,0.75), rgba(0,0,0,0.75)), 
+                              url("PASTE_YOUR_IMAGE_URL_HERE");
             background-size: cover;
             background-position: center;
             padding: 20px !important; 
@@ -48,7 +69,6 @@ def apply_pro_styling():
         .match-wrapper {{ display: flex; align-items: center; justify-content: space-between; width: 100%; gap: 15px; }}
         .player-box {{ flex: 1; text-align: center; }}
         
-        /* Large Player Images (No Border) */
         .player-img {{ 
             width: 100%; 
             max-width: 180px; 
@@ -65,7 +85,6 @@ def apply_pro_styling():
             text-shadow: 2px 2px 4px #000;
         }}
         
-        /* Digital Timer */
         .digital-timer {{
             background-color: rgba(0, 0, 0, 0.9);
             border: 2px solid #333;
@@ -81,7 +100,6 @@ def apply_pro_styling():
         @keyframes pulse {{ 0% {{ opacity: 1; }} 50% {{ opacity: 0.4; }} 100% {{ opacity: 1; }} }}
         .pulse {{ animation: pulse 1s infinite; }}
 
-        /* Buttons */
         div.stButton > button {{
             background-color: #ffd700 !important;
             color: #000 !important;
@@ -210,7 +228,7 @@ if page == "Predictions":
                     st.success("Scores Locked! ✅"); time.sleep(1.5); st.rerun()
                 except: st.error("Google busy. Try again.")
 
-# --- LEADERBOARD & RIVAL WATCH (UNCHANGED) ---
+# --- LEADERBOARD & RIVAL WATCH ---
 elif page == "Leaderboard":
     st.title("🏆 Leaderboard")
     p_df = get_data("Predictions"); r_df = get_data("Results")
@@ -238,3 +256,17 @@ elif page == "Rival Watch":
         p_df = p_df.drop_duplicates(subset=['Username', 'Match_ID'], keep='last')
         match_p = p_df[p_df['Match_ID'].astype(str) == mid]
         if not match_p.empty: st.table(match_p[['Username', 'Score']].set_index('Username'))
+
+elif page == "Admin":
+    st.title("⚙️ Admin Hub")
+    if st.text_input("Admin Key", type="password") == "darts2025":
+        m_df = get_data("Matches")
+        target = st.selectbox("Select Match", m_df['Match_ID'].astype(str) + ": " + m_df['Player1'] + " vs " + m_df['Player2'])
+        c1, c2 = st.columns(2)
+        with c1: r1 = st.selectbox("Actual P1", range(11))
+        with c2: r2 = st.selectbox("Actual P2", range(11))
+        if st.button("Finalize Result"):
+            old_res = conn.read(spreadsheet=URL, worksheet="Results", ttl=0)
+            new_res = pd.DataFrame([{"Match_ID": target.split(":")[0], "Score": f"{r1}-{r2}"}])
+            conn.update(spreadsheet=URL, worksheet="Results", data=pd.concat([old_res, new_res], ignore_index=True))
+            st.cache_data.clear(); st.success("Result Published!")
