@@ -23,7 +23,7 @@ def apply_pro_styling():
         <style>
         /* Main App Background */
         .stApp {{
-            background: linear-gradient(rgba(0,0,0,0.85), rgba(0,0,0,0.85)), 
+            background: linear-gradient(rgba(0,0,0,0.5), rgba(0,0,0,0.5)), 
                         url("https://cdn.images.express.co.uk/img/dynamic/4/590x/secondary/5856693.jpg?r=1735554407217");
             background-size: cover; background-position: center; background-attachment: fixed;
         }}
@@ -36,8 +36,8 @@ def apply_pro_styling():
             border-radius: 20px !important;
             background-color: #111 !important;
             /* REPLACE THE URL BELOW WITH YOUR CHOSEN IMAGE */
-            background-image: linear-gradient(rgba(0,0,0,0.75), rgba(0,0,0,0.75)), 
-                              url("PASTE_YOUR_IMAGE_URL_HERE");
+            background-image: linear-gradient(rgba(0,0,0,0.5), rgba(0,0,0,0.5)), 
+                              url("https://news.paddypower.com/assets/uploads/2023/12/Paddy-Power-World-Darts-Championship.jpg");
             background-size: cover;
             background-position: center;
             padding: 20px !important; 
