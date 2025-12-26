@@ -4,14 +4,14 @@ import pandas as pd
 from datetime import datetime
 
 # 1. Page Configuration
-st.set_page_config(page_title="Darts Predictor Pro", page_icon="🎯", layout="wide")
+st.set_page_config(page_title="PDC Predictor Pro", page_icon="🎯", layout="wide")
 
 # 2. Connection
 conn = st.connection("gsheets", type=GSheetsConnection)
 URL = st.secrets["connections"]["gsheets"]["spreadsheet"]
 
-# 3. Data Fetching
-@st.cache_data(ttl=10) # Lowered TTL so updates show faster
+# 3. Safe Data Loading
+@st.cache_data(ttl=10)
 def get_data(worksheet):
     try:
         df = conn.read(spreadsheet=URL, worksheet=worksheet, ttl=0)
@@ -19,7 +19,7 @@ def get_data(worksheet):
     except:
         return pd.DataFrame()
 
-# 4. Styling (Transparent Tables Fix)
+# 4. Global Styling (Transparency & Cards)
 st.markdown("""
     <style>
     .stApp { 
@@ -27,27 +27,39 @@ st.markdown("""
                     url("https://cdn.images.express.co.uk/img/dynamic/4/590x/secondary/5856693.jpg?r=1735554407217"); 
         background-size: cover; background-attachment: fixed; 
     }
-    h1, h2, h3, p, label { color: white !important; }
+    h1, h2, h3, p, label { color: white !important; font-weight: bold; }
     [data-testid="stSidebarContent"] { background-color: #111111 !important; }
     
-    /* KILL WHITE TABLE BACKGROUNDS */
-    [data-testid="stDataFrame"], [data-testid="stTable"] {
+    /* Table Transparency Fix */
+    [data-testid="stDataFrame"], [data-testid="stTable"], .st-emotion-cache-1wivap2 {
         background-color: rgba(0,0,0,0.4) !important;
         border-radius: 10px;
     }
-    .st-emotion-cache-1wivap2 { background-color: transparent !important; } 
     
-    div.stButton > button { 
-        background-color: #ffd700 !important; color: black !important; 
-        font-weight: bold; width: 100%; border-radius: 10px; 
+    /* THE MATCH CARD REBORN */
+    .match-card {
+        border: 2px solid #ffd700;
+        border-radius: 20px;
+        background-image: linear-gradient(rgba(0,0,0,0.5), rgba(0,0,0,0.5)), 
+                          url("https://news.paddypower.com/assets/uploads/2023/12/Paddy-Power-World-Darts-Championship.jpg");
+        background-size: cover; background-position: center;
+        padding: 20px; margin-bottom: 25px;
     }
+    .match-wrapper { display: flex; align-items: center; justify-content: space-between; width: 100%; gap: 15px; }
+    .player-box { flex: 1; text-align: center; }
+    .player-img { width: 100%; max-width: 150px; border-radius: 10px; border: 2px solid #ffd700; }
+    .vs-text { color: #ffd700 !important; font-size: 2rem !important; font-weight: 900 !important; }
+    .player-name { font-size: 1.3rem !important; font-weight: 900 !important; color: #ffd700 !important; }
+    
+    div.stButton > button { background-color: #ffd700 !important; color: black !important; font-weight: bold; border-radius: 10px; }
     </style>
 """, unsafe_allow_html=True)
 
 # 5. Session State
 if 'username' not in st.session_state: st.session_state['username'] = ""
+if 'temp_preds' not in st.session_state: st.session_state.temp_preds = {}
 
-# --- LOGIN LOGIC ---
+# --- SIDEBAR LOGIC ---
 st.sidebar.title("🎯 PDC PREDICTOR")
 if st.session_state['username'] == "":
     auth_mode = st.sidebar.radio("Entry", ["Login", "Register"])
@@ -69,13 +81,13 @@ else:
 st.sidebar.divider()
 page = st.sidebar.radio("Navigate", ["Predictions", "Leaderboard", "Rival Watch", "Admin"])
 
-# --- SCORING ENGINE ---
+# --- SHARED SCORING ENGINE ---
 def get_leaderboard_data():
     p_df = get_data("Predictions")
     r_df = get_data("Results")
     if p_df.empty or r_df.empty: return pd.DataFrame(columns=['Username', 'Current Points'])
     
-    # Convert IDs to string and drop only the nan rows
+    # Filtering out bad IDs
     p_df = p_df[p_df['Match_ID'].notna()]
     r_df = r_df[r_df['Match_ID'].notna()]
     p_df['Match_ID'] = p_df['Match_ID'].astype(str)
@@ -90,50 +102,55 @@ def get_leaderboard_data():
             return 1 if (u1 > u2 and r1 > r2) or (u1 < u2 and r1 < r2) else 0
         except: return 0
     merged['Pts'] = merged.apply(calc, axis=1)
-    return merged.groupby('Username')['Pts'].sum().reset_index().rename(columns={'Pts': 'Current Points'})
+    return merged.groupby('Username')['Pts'].sum().reset_index().rename(columns={'Pts': 'Current Points'}).sort_values('Current Points', ascending=False)
 
-# --- PAGES ---
+# --- PAGE: PREDICTIONS ---
 if page == "Predictions":
     if st.session_state['username'] == "":
         st.warning("Please sign in.")
     else:
         st.title("Upcoming Matches")
-        m_df = get_data("Matches")
-        # Only drop rows if Player names are missing
-        m_df = m_df.dropna(subset=['Player1', 'Player2'])
-        for _, row in m_df.iterrows():
-            st.write(f"### {row['Player1']} vs {row['Player2']}")
-            # (Insert your Match Card HTML/Buttons here)
-
-elif page == "Leaderboard":
-    st.title("🏆 Leaderboard")
-    lb = get_leaderboard_data()
-    st.dataframe(lb.sort_values('Current Points', ascending=False), hide_index=True, width="stretch")
-
-elif page == "Rival Watch":
-    st.title("👀 Rival Watch")
-    m_df = get_data("Matches").dropna(subset=['Match_ID', 'Player1'])
-    p_df = get_data("Predictions")
-    
-    # Create valid options list (skipping nans)
-    options = []
-    for _, r in m_df.iterrows():
-        try:
-            val = f"{int(float(r['Match_ID']))}: {r['Player1']} vs {r['Player2']}"
-            options.append(val)
-        except: continue
+        m_df = get_data("Matches").dropna(subset=['Match_ID', 'Player1', 'Player2'])
+        p_df = get_data("Predictions")
+        r_df = get_data("Results")
         
-    if options:
-        sel = st.selectbox("Pick a Match", options)
-        mid = sel.split(":")[0]
-        lb = get_leaderboard_data()
-        match_p = p_df[p_df['Match_ID'].astype(str).str.contains(mid)]
-        rivals = match_p.merge(lb, on="Username", how="left").fillna(0)
-        st.dataframe(rivals[['Username', 'Score', 'Current Points']], hide_index=True, width="stretch")
+        open_matches = []
+        for _, row in m_df.iterrows():
+            m_id = str(row['Match_ID'])
+            # Skip if match has a result already
+            if not r_df.empty and m_id in r_df['Match_ID'].astype(str).values: continue
+            
+            # Check if user already predicted
+            done = False
+            if not p_df.empty:
+                done = not p_df[(p_df['Username'] == st.session_state['username']) & (p_df['Match_ID'].astype(str) == m_id)].empty
 
-elif page == "Admin":
-    st.title("⚙️ Admin Hub")
-    pw = st.text_input("Admin Password", type="password")
-    if pw == "darts2025":
-        st.success("Admin Access Granted")
-        # Insert result entry logic here
+            # Render the Match Card
+            st.markdown(f"""
+                <div class="match-card">
+                    <div class="match-wrapper">
+                        <div class="player-box">
+                            <img src="{row.get('P1_Image', '')}" class="player-img">
+                            <div class="player-name">{row['Player1']}</div>
+                        </div>
+                        <div class="vs-text">VS</div>
+                        <div class="player-box">
+                            <img src="{row.get('P2_Image', '')}" class="player-img">
+                            <div class="player-name">{row['Player2']}</div>
+                        </div>
+                    </div>
+                </div>
+            """, unsafe_allow_html=True)
+
+            if done:
+                st.success("Prediction Locked In ✅")
+            else:
+                open_matches.append(m_id)
+                col1, col2 = st.columns(2)
+                with col1: s1 = st.selectbox(f"{row['Player1']} Score", range(11), key=f"s1_{m_id}")
+                with col2: s2 = st.selectbox(f"{row['Player2']} Score", range(11), key=f"s2_{m_id}")
+                st.session_state.temp_preds[m_id] = f"{s1}-{s2}"
+        
+        if open_matches and st.button("🔒 LOCK ALL PREDICTIONS"):
+            new_preds = [{"Username": st.session_state['username'], "Match_ID": mid, "Score": st.session_state.temp_preds.get(mid, "0-0")} for mid in open_matches]
+            conn.
