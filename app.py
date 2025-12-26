@@ -16,12 +16,11 @@ URL = st.secrets["connections"]["gsheets"]["spreadsheet"]
 def get_data(worksheet):
     return conn.read(spreadsheet=URL, worksheet=worksheet, ttl=0)
 
-# 4. Pro Styling (Clean Cards, Large Players, Faded Background)
+# 4. Pro Styling
 def apply_pro_styling():
     st.markdown(
         f"""
         <style>
-        /* Main App Background */
         .stApp {{
             background: linear-gradient(rgba(0,0,0,0.5), rgba(0,0,0,0.5)), 
                         url("https://cdn.images.express.co.uk/img/dynamic/4/590x/secondary/5856693.jpg?r=1735554407217");
@@ -30,58 +29,38 @@ def apply_pro_styling():
         h1, h2, h3, p {{ color: white !important; }}
         [data-testid="stSidebarContent"] {{ background-color: #111111 !important; }}
         
-        /* The Match Card */
+        /* Transparent Table Fix */
+        [data-testid="stDataFrame"] {{
+            background: transparent !important;
+        }}
+        
         [data-testid="stVerticalBlock"] > div:has(.match-wrapper) {{
             border: 2px solid #ffd700 !important;
             border-radius: 20px !important;
-            background-color: #111 !important;
-            /* REPLACE THE URL BELOW WITH YOUR CHOSEN IMAGE */
             background-image: linear-gradient(rgba(0,0,0,0.5), rgba(0,0,0,0.5)), 
                               url("https://news.paddypower.com/assets/uploads/2023/12/Paddy-Power-World-Darts-Championship.jpg");
             background-size: cover;
             background-position: center;
             padding: 20px !important; 
             margin-bottom: 25px !important;
-            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
         }}
         
         .match-wrapper {{ display: flex; align-items: center; justify-content: space-between; width: 100%; gap: 15px; }}
         .player-box {{ flex: 1; text-align: center; }}
+        .player-img {{ width: 100%; max-width: 180px; border-radius: 10px; border: none !important; }}
+        .vs-text-styled {{ color: #ffd700 !important; font-size: 2rem !important; font-weight: 900 !important; text-shadow: 2px 2px 4px #000; }}
+        .player-name-styled {{ font-size: 1.3rem !important; font-weight: 900 !important; color: #ffd700 !important; text-shadow: 2px 2px 4px #000; }}
         
-        /* Large Player Images (No Border) */
-        .player-img {{ 
-            width: 100%; 
-            max-width: 180px; 
-            border-radius: 10px; 
-            border: none !important;
-            background: transparent !important;
-        }}
-        
-        .vs-text-styled {{ color: #ffd700 !important; font-size: 2rem !important; font-weight: 900 !important; flex: 0.4; text-align: center; text-shadow: 2px 2px 4px #000; }}
-        
-        .player-name-styled {{ 
-            font-size: 1.3rem !important; font-weight: 900 !important; 
-            color: #ffd700 !important; margin-top: 10px; text-align: center;
-            text-shadow: 2px 2px 4px #000;
-        }}
-        
-        /* Digital Timer */
         .digital-timer {{
             background-color: rgba(0, 0, 0, 0.9);
             border: 2px solid #333;
             border-radius: 8px;
             font-family: 'Courier New', Courier, monospace;
-            font-weight: bold;
-            font-size: 1.1rem;
             padding: 6px 15px;
             display: inline-block;
             margin-bottom: 15px;
         }}
 
-        @keyframes pulse {{ 0% {{ opacity: 1; }} 50% {{ opacity: 0.4; }} 100% {{ opacity: 1; }} }}
-        .pulse {{ animation: pulse 1s infinite; }}
-
-        /* Buttons */
         div.stButton > button {{
             background-color: #ffd700 !important;
             color: #000 !important;
@@ -89,10 +68,7 @@ def apply_pro_styling():
             width: 100% !important;
             border-radius: 12px !important;
             height: 3.8em !important;
-            border: none !important;
         }}
-        
-        div[data-baseweb="select"] > div {{ background-color: #222 !important; color: white !important; border: 1px solid #444 !important; }}
         </style>
         """,
         unsafe_allow_html=True
@@ -100,7 +76,6 @@ def apply_pro_styling():
 
 apply_pro_styling()
 
-# 5. Session State
 if 'username' not in st.session_state: st.session_state['username'] = ""
 if 'temp_preds' not in st.session_state: st.session_state.temp_preds = {}
 
@@ -136,28 +111,32 @@ if page == "Predictions":
         st.warning("Please sign in to view matchups.")
     else:
         st.title("Upcoming Matches")
-        
         m_df = get_data("Matches")
         p_df = get_data("Predictions")
         r_df = get_data("Results")
         now = datetime.now()
 
         if 'Date' in m_df.columns:
+            # FIX: Drop empty dates to prevent TypeError
+            m_df = m_df.dropna(subset=['Date'])
             m_df['Date_Parsed'] = pd.to_datetime(m_df['Date'])
+            
             unique_dates = sorted(m_df['Date_Parsed'].dt.date.unique())
-            view_date = st.selectbox("📅 Select Match Day", unique_dates, 
-                                     index=unique_dates.index(now.date()) if now.date() in unique_dates else 0)
-            display_df = m_df[m_df['Date_Parsed'].dt.date == view_date]
+            if unique_dates:
+                view_date = st.selectbox("📅 Select Match Day", unique_dates, 
+                                         index=unique_dates.index(now.date()) if now.date() in unique_dates else 0)
+                display_df = m_df[m_df['Date_Parsed'].dt.date == view_date]
+            else:
+                display_df = pd.DataFrame()
         else:
             display_df = m_df
 
         open_matches_list = []
-
         for _, row in display_df.iterrows():
             m_id = str(row['Match_ID'])
-            if m_id in r_df['Match_ID'].astype(str).values if not r_df.empty else False: continue
-                
-            user_preds = p_df[p_df['Username'] == st.session_state['username']]
+            if not r_df.empty and m_id in r_df['Match_ID'].astype(str).values: continue
+            
+            user_preds = p_df[p_df['Username'] == st.session_state['username']] if not p_df.empty else pd.DataFrame()
             already_done = m_id in user_preds['Match_ID'].astype(str).values if not user_preds.empty else False
             
             match_time = pd.to_datetime(row['Date'])
@@ -168,23 +147,17 @@ if page == "Predictions":
                 if not already_done and not is_locked_by_time:
                     h, rem = divmod(int(seconds_left), 3600); m, _ = divmod(rem, 60)
                     t_clr = "#00FF00" if seconds_left > 1800 else "#FFA500" if seconds_left > 600 else "#FF0000"
-                    t_cls = "pulse" if seconds_left < 600 else ""
-                    st.markdown(f'<div style="text-align: center;"><div class="digital-timer {t_cls}" style="color: {t_clr}; border-color: {t_clr}66;">⏱️ {h:02d}:{m:02d} TO START</div></div>', unsafe_allow_html=True)
-                elif is_locked_by_time and not already_done:
-                    st.markdown(f'<div style="text-align: center;"><div class="digital-timer" style="color: #666; border-color: #222;">🔒 ENTRY CLOSED</div></div>', unsafe_allow_html=True)
-
-                p1_img = row['P1_Image'] if pd.notna(row['P1_Image']) else "https://via.placeholder.com/150"
-                p2_img = row['P2_Image'] if pd.notna(row['P2_Image']) else "https://via.placeholder.com/150"
+                    st.markdown(f'<div style="text-align: center;"><div class="digital-timer" style="color: {t_clr}; border-color: {t_clr}66;">⏱️ {h:02d}:{m:02d} TO START</div></div>', unsafe_allow_html=True)
                 
                 st.markdown(f"""
                     <div class="match-wrapper">
                         <div class="player-box">
-                            <img src="{p1_img}" class="player-img">
+                            <img src="{row['P1_Image']}" class="player-img">
                             <div class="player-name-styled">{row['Player1']}</div>
                         </div>
                         <div class="vs-text-styled">VS</div>
                         <div class="player-box">
-                            <img src="{p2_img}" class="player-img">
+                            <img src="{row['P2_Image']}" class="player-img">
                             <div class="player-name-styled">{row['Player2']}</div>
                         </div>
                     </div>
@@ -200,17 +173,14 @@ if page == "Predictions":
                     st.session_state.temp_preds[m_id] = f"{s1}-{s2}"
 
         if open_matches_list:
-            st.divider()
             if st.button("🔒 LOCK ALL PREDICTIONS"):
-                try:
-                    new_data = [{"Username": st.session_state['username'], "Match_ID": m_id, "Score": st.session_state.temp_preds.get(m_id, "0-0")} for m_id in open_matches_list]
-                    current_p = conn.read(spreadsheet=URL, worksheet="Predictions", ttl=0)
-                    conn.update(spreadsheet=URL, worksheet="Predictions", data=pd.concat([current_p, pd.DataFrame(new_data)], ignore_index=True))
-                    st.session_state.temp_preds = {}; st.cache_data.clear()
-                    st.success("Scores Locked! ✅"); time.sleep(1.5); st.rerun()
-                except: st.error("Google busy. Try again.")
+                new_data = [{"Username": st.session_state['username'], "Match_ID": m_id, "Score": st.session_state.temp_preds.get(m_id, "0-0")} for m_id in open_matches_list]
+                current_p = conn.read(spreadsheet=URL, worksheet="Predictions", ttl=0)
+                conn.update(spreadsheet=URL, worksheet="Predictions", data=pd.concat([current_p, pd.DataFrame(new_data)], ignore_index=True))
+                st.session_state.temp_preds = {}; st.cache_data.clear()
+                st.success("Scores Locked!"); time.sleep(1.2); st.rerun()
 
-# --- LEADERBOARD & RIVAL WATCH (UNCHANGED) ---
+# --- LEADERBOARD ---
 elif page == "Leaderboard":
     st.title("🏆 Leaderboard")
     p_df = get_data("Predictions"); r_df = get_data("Results")
@@ -227,18 +197,21 @@ elif page == "Leaderboard":
             return 0
         merged['Pts'] = merged.apply(calc, axis=1)
         lb = merged.groupby('Username')['Pts'].sum().reset_index().sort_values('Pts', ascending=False)
-        st.write(lb.set_index('Username'))
+        # FIX: Hides the index and keeps background transparent
+        st.dataframe(lb, hide_index=True, use_container_width=True)
 
+# --- RIVAL WATCH ---
 elif page == "Rival Watch":
     st.title("👀 Rival Watch")
     m_df = get_data("Matches"); p_df = get_data("Predictions")
-    if not m_df.empty:
+    if not m_df.empty and not p_df.empty:
         m_sel = st.selectbox("Pick a Match:", m_df['Match_ID'].astype(str) + ": " + m_df['Player1'] + " vs " + m_df['Player2'])
         mid = m_sel.split(":")[0]
-        p_df = p_df.drop_duplicates(subset=['Username', 'Match_ID'], keep='last')
-        match_p = p_df[p_df['Match_ID'].astype(str) == mid]
-        if not match_p.empty: st.table(match_p[['Username', 'Score']].set_index('Username'))
+        match_p = p_df[p_df['Match_ID'].astype(str) == mid].drop_duplicates('Username', keep='last')
+        if not match_p.empty:
+            st.dataframe(match_p[['Username', 'Score']], hide_index=True, use_container_width=True)
 
+# --- ADMIN ---
 elif page == "Admin":
     st.title("⚙️ Admin Hub")
     if st.text_input("Admin Key", type="password") == "darts2025":
