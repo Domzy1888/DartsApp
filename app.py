@@ -227,7 +227,7 @@ elif page == "Leaderboard":
             return 0
         merged['Pts'] = merged.apply(calc, axis=1)
         lb = merged.groupby('Username')['Pts'].sum().reset_index().sort_values('Pts', ascending=False)
-        st.table(lb)
+        st.write(lb.set_index('Username'))
 
 elif page == "Rival Watch":
     st.title("👀 Rival Watch")
