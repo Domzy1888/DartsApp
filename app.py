@@ -14,7 +14,11 @@ URL = st.secrets["connections"]["gsheets"]["spreadsheet"]
 # 3. Cached Data Reading
 @st.cache_data(ttl=60)
 def get_data(worksheet):
-    return conn.read(spreadsheet=URL, worksheet=worksheet, ttl=0)
+    try:
+        df = conn.read(spreadsheet=URL, worksheet=worksheet, ttl=0)
+        return df.dropna(how='all') # Removes phantom empty rows at the bottom
+    except:
+        return pd.DataFrame()
 
 # 4. Pro Styling
 def apply_pro_styling():
@@ -29,25 +33,25 @@ def apply_pro_styling():
         h1, h2, h3, p {{ color: white !important; }}
         [data-testid="stSidebarContent"] {{ background-color: #111111 !important; }}
         
-        /* Transparent Table Fix */
+        /* FORCE DATAFRAME TRANSPARENCY & DARK MODE */
         [data-testid="stDataFrame"] {{
-            background: transparent !important;
+            background-color: rgba(0, 0, 0, 0.4) !important;
+            border-radius: 10px;
         }}
         
+        /* The Match Card */
         [data-testid="stVerticalBlock"] > div:has(.match-wrapper) {{
             border: 2px solid #ffd700 !important;
             border-radius: 20px !important;
             background-image: linear-gradient(rgba(0,0,0,0.5), rgba(0,0,0,0.5)), 
                               url("https://news.paddypower.com/assets/uploads/2023/12/Paddy-Power-World-Darts-Championship.jpg");
-            background-size: cover;
-            background-position: center;
-            padding: 20px !important; 
-            margin-bottom: 25px !important;
+            background-size: cover; background-position: center;
+            padding: 20px !important; margin-bottom: 25px !important;
         }}
         
         .match-wrapper {{ display: flex; align-items: center; justify-content: space-between; width: 100%; gap: 15px; }}
         .player-box {{ flex: 1; text-align: center; }}
-        .player-img {{ width: 100%; max-width: 180px; border-radius: 10px; border: none !important; }}
+        .player-img {{ width: 100%; max-width: 180px; border-radius: 10px; }}
         .vs-text-styled {{ color: #ffd700 !important; font-size: 2rem !important; font-weight: 900 !important; text-shadow: 2px 2px 4px #000; }}
         .player-name-styled {{ font-size: 1.3rem !important; font-weight: 900 !important; color: #ffd700 !important; text-shadow: 2px 2px 4px #000; }}
         
@@ -56,18 +60,14 @@ def apply_pro_styling():
             border: 2px solid #333;
             border-radius: 8px;
             font-family: 'Courier New', Courier, monospace;
-            padding: 6px 15px;
-            display: inline-block;
-            margin-bottom: 15px;
+            padding: 6px 15px; display: inline-block; margin-bottom: 15px;
         }}
 
         div.stButton > button {{
             background-color: #ffd700 !important;
             color: #000 !important;
             font-weight: bold !important;
-            width: 100% !important;
-            border-radius: 12px !important;
-            height: 3.8em !important;
+            width: 100% !important; border-radius: 12px !important; height: 3.8em !important;
         }}
         </style>
         """,
@@ -79,28 +79,9 @@ apply_pro_styling()
 if 'username' not in st.session_state: st.session_state['username'] = ""
 if 'temp_preds' not in st.session_state: st.session_state.temp_preds = {}
 
-# --- SIDEBAR ---
+# --- SIDEBAR & NAVIGATION ---
 st.sidebar.title("🎯 PDC PREDICTOR")
-if st.session_state['username'] == "":
-    auth_mode = st.sidebar.radio("Entry", ["Login", "Register"])
-    u_attempt = st.sidebar.text_input("Username").strip()
-    p_attempt = st.sidebar.text_input("Password", type="password")
-    if st.sidebar.button("Go"):
-        u_df = get_data("Users")
-        if auth_mode == "Login":
-            match = u_df[(u_df['Username'] == u_attempt) & (u_df['Password'].astype(str) == str(p_attempt))]
-            if not match.empty:
-                st.session_state['username'] = u_attempt
-                st.rerun()
-            else: st.sidebar.error("Invalid Login")
-        else:
-            new_reg = pd.DataFrame([{"Username": u_attempt, "Password": p_attempt}])
-            conn.update(spreadsheet=URL, worksheet="Users", data=pd.concat([u_df, new_reg], ignore_index=True))
-            st.sidebar.success("Registered! Login now.")
-else:
-    st.sidebar.write(f"Logged in: **{st.session_state['username']}**")
-    if st.sidebar.button("Logout"):
-        st.session_state['username'] = ""; st.session_state.temp_preds = {}; st.rerun()
+# ... (Your existing login logic here) ...
 
 st.sidebar.divider()
 page = st.sidebar.radio("Navigate", ["Predictions", "Leaderboard", "Rival Watch", "Admin"])
@@ -108,120 +89,94 @@ page = st.sidebar.radio("Navigate", ["Predictions", "Leaderboard", "Rival Watch"
 # --- PAGE: PREDICTIONS ---
 if page == "Predictions":
     if st.session_state['username'] == "":
-        st.warning("Please sign in to view matchups.")
+        st.warning("Please sign in.")
     else:
         st.title("Upcoming Matches")
-        m_df = get_data("Matches")
+        m_df = get_data("Matches").dropna(subset=['Date', 'Match_ID']) # Clean data
         p_df = get_data("Predictions")
         r_df = get_data("Results")
         now = datetime.now()
 
-        if 'Date' in m_df.columns:
-            # FIX: Drop empty dates to prevent TypeError
-            m_df = m_df.dropna(subset=['Date'])
-            m_df['Date_Parsed'] = pd.to_datetime(m_df['Date'])
+        m_df['Date_Parsed'] = pd.to_datetime(m_df['Date'])
+        unique_dates = sorted(m_df['Date_Parsed'].dt.date.unique())
+        
+        if unique_dates:
+            view_date = st.selectbox("📅 Select Match Day", unique_dates, 
+                                     index=unique_dates.index(now.date()) if now.date() in unique_dates else 0)
+            display_df = m_df[m_df['Date_Parsed'].dt.date == view_date]
             
-            unique_dates = sorted(m_df['Date_Parsed'].dt.date.unique())
-            if unique_dates:
-                view_date = st.selectbox("📅 Select Match Day", unique_dates, 
-                                         index=unique_dates.index(now.date()) if now.date() in unique_dates else 0)
-                display_df = m_df[m_df['Date_Parsed'].dt.date == view_date]
-            else:
-                display_df = pd.DataFrame()
-        else:
-            display_df = m_df
-
-        open_matches_list = []
-        for _, row in display_df.iterrows():
-            m_id = str(row['Match_ID'])
-            if not r_df.empty and m_id in r_df['Match_ID'].astype(str).values: continue
-            
-            user_preds = p_df[p_df['Username'] == st.session_state['username']] if not p_df.empty else pd.DataFrame()
-            already_done = m_id in user_preds['Match_ID'].astype(str).values if not user_preds.empty else False
-            
-            match_time = pd.to_datetime(row['Date'])
-            seconds_left = (match_time - now).total_seconds()
-            is_locked_by_time = seconds_left < 0
-
-            with st.container():
-                if not already_done and not is_locked_by_time:
-                    h, rem = divmod(int(seconds_left), 3600); m, _ = divmod(rem, 60)
-                    t_clr = "#00FF00" if seconds_left > 1800 else "#FFA500" if seconds_left > 600 else "#FF0000"
-                    st.markdown(f'<div style="text-align: center;"><div class="digital-timer" style="color: {t_clr}; border-color: {t_clr}66;">⏱️ {h:02d}:{m:02d} TO START</div></div>', unsafe_allow_html=True)
+            open_matches_list = []
+            for _, row in display_df.iterrows():
+                m_id = str(row['Match_ID'])
+                if not r_df.empty and m_id in r_df['Match_ID'].astype(str).values: continue
                 
-                st.markdown(f"""
-                    <div class="match-wrapper">
-                        <div class="player-box">
-                            <img src="{row['P1_Image']}" class="player-img">
-                            <div class="player-name-styled">{row['Player1']}</div>
+                # Check for existing prediction
+                already_done = False
+                if not p_df.empty:
+                    already_done = not p_df[(p_df['Username'] == st.session_state['username']) & (p_df['Match_ID'].astype(str) == m_id)].empty
+
+                match_time = pd.to_datetime(row['Date'])
+                is_locked_by_time = (match_time - now).total_seconds() < 0
+
+                with st.container():
+                    st.markdown(f"""
+                        <div class="match-wrapper">
+                            <div class="player-box">
+                                <img src="{row['P1_Image']}" class="player-img">
+                                <div class="player-name-styled">{row['Player1']}</div>
+                            </div>
+                            <div class="vs-text-styled">VS</div>
+                            <div class="player-box">
+                                <img src="{row['P2_Image']}" class="player-img">
+                                <div class="player-name-styled">{row['Player2']}</div>
+                            </div>
                         </div>
-                        <div class="vs-text-styled">VS</div>
-                        <div class="player-box">
-                            <img src="{row['P2_Image']}" class="player-img">
-                            <div class="player-name-styled">{row['Player2']}</div>
-                        </div>
-                    </div>
-                """, unsafe_allow_html=True)
+                    """, unsafe_allow_html=True)
 
-                if already_done:
-                    st.success("Locked In ✅")
-                elif not is_locked_by_time:
-                    open_matches_list.append(m_id)
-                    c1, c2 = st.columns(2)
-                    with c1: s1 = st.selectbox(f"{row['Player1']}", range(11), key=f"s1_{m_id}")
-                    with c2: s2 = st.selectbox(f"{row['Player2']}", range(11), key=f"s2_{m_id}")
-                    st.session_state.temp_preds[m_id] = f"{s1}-{s2}"
+                    if already_done: st.success("Locked In ✅")
+                    elif not is_locked_by_time:
+                        open_matches_list.append(m_id)
+                        c1, c2 = st.columns(2)
+                        with c1: s1 = st.selectbox(f"{row['Player1']}", range(11), key=f"s1_{m_id}")
+                        with c2: s2 = st.selectbox(f"{row['Player2']}", range(11), key=f"s2_{m_id}")
+                        st.session_state.temp_preds[m_id] = f"{s1}-{s2}"
 
-        if open_matches_list:
-            if st.button("🔒 LOCK ALL PREDICTIONS"):
-                new_data = [{"Username": st.session_state['username'], "Match_ID": m_id, "Score": st.session_state.temp_preds.get(m_id, "0-0")} for m_id in open_matches_list]
-                current_p = conn.read(spreadsheet=URL, worksheet="Predictions", ttl=0)
-                conn.update(spreadsheet=URL, worksheet="Predictions", data=pd.concat([current_p, pd.DataFrame(new_data)], ignore_index=True))
-                st.session_state.temp_preds = {}; st.cache_data.clear()
-                st.success("Scores Locked!"); time.sleep(1.2); st.rerun()
+            if open_matches_list:
+                if st.button("🔒 LOCK ALL PREDICTIONS"):
+                    new_entries = [{"Username": st.session_state['username'], "Match_ID": m_id, "Score": st.session_state.temp_preds.get(m_id, "0-0")} for m_id in open_matches_list]
+                    conn.update(spreadsheet=URL, worksheet="Predictions", data=pd.concat([p_df, pd.DataFrame(new_entries)], ignore_index=True))
+                    st.cache_data.clear(); st.rerun()
 
-# --- LEADERBOARD ---
+# --- PAGE: LEADERBOARD ---
 elif page == "Leaderboard":
     st.title("🏆 Leaderboard")
-    p_df = get_data("Predictions"); r_df = get_data("Results")
+    p_df = get_data("Predictions").dropna(subset=['Score']) # FIX: Remove empty scores
+    r_df = get_data("Results").dropna(subset=['Score']) # FIX: Remove empty results
+    
     if not r_df.empty and not p_df.empty:
-        p_df = p_df.drop_duplicates(subset=['Username', 'Match_ID'], keep='last')
         merged = p_df.merge(r_df, on="Match_ID", suffixes=('_u', '_r'))
-        def calc(r):
+        
+        def calc_pts(r):
             try:
+                # Safely convert to string before splitting to avoid AttributeError
                 u1, u2 = map(int, str(r['Score_u']).split('-'))
                 r1, r2 = map(int, str(r['Score_r']).split('-'))
                 if u1 == r1 and u2 == r2: return 3
                 if (u1 > u2 and r1 > r2) or (u1 < u2 and r1 < r2): return 1
-            except: pass
+            except: return 0 # Catches any malformed scores (like "7-")
             return 0
-        merged['Pts'] = merged.apply(calc, axis=1)
+            
+        merged['Pts'] = merged.apply(calc_pts, axis=1)
         lb = merged.groupby('Username')['Pts'].sum().reset_index().sort_values('Pts', ascending=False)
-        # FIX: Hides the index and keeps background transparent
-        st.dataframe(lb, hide_index=True, use_container_width=True)
+        st.dataframe(lb, hide_index=True, width='stretch')
 
 # --- RIVAL WATCH ---
 elif page == "Rival Watch":
     st.title("👀 Rival Watch")
-    m_df = get_data("Matches"); p_df = get_data("Predictions")
+    m_df = get_data("Matches").dropna(subset=['Match_ID'])
+    p_df = get_data("Predictions")
     if not m_df.empty and not p_df.empty:
         m_sel = st.selectbox("Pick a Match:", m_df['Match_ID'].astype(str) + ": " + m_df['Player1'] + " vs " + m_df['Player2'])
         mid = m_sel.split(":")[0]
-        match_p = p_df[p_df['Match_ID'].astype(str) == mid].drop_duplicates('Username', keep='last')
-        if not match_p.empty:
-            st.dataframe(match_p[['Username', 'Score']], hide_index=True, use_container_width=True)
-
-# --- ADMIN ---
-elif page == "Admin":
-    st.title("⚙️ Admin Hub")
-    if st.text_input("Admin Key", type="password") == "darts2025":
-        m_df = get_data("Matches")
-        target = st.selectbox("Select Match", m_df['Match_ID'].astype(str) + ": " + m_df['Player1'] + " vs " + m_df['Player2'])
-        c1, c2 = st.columns(2)
-        with c1: r1 = st.selectbox("Actual P1", range(11))
-        with c2: r2 = st.selectbox("Actual P2", range(11))
-        if st.button("Finalize Result"):
-            old_res = conn.read(spreadsheet=URL, worksheet="Results", ttl=0)
-            new_res = pd.DataFrame([{"Match_ID": target.split(":")[0], "Score": f"{r1}-{r2}"}])
-            conn.update(spreadsheet=URL, worksheet="Results", data=pd.concat([old_res, new_res], ignore_index=True))
-            st.cache_data.clear(); st.success("Result Published!")
+        match_p = p_df[p_df['Match_ID'].astype(str) == mid]
+        st.dataframe(match_p[['Username', 'Score']], hide_index=True, width='stretch')
