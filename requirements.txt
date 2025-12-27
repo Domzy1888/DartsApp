@@ -1,3 +1,5 @@
 streamlit
+st-paywall
 st-gsheets-connection
 pandas
+
