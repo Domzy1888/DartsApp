@@ -1,6 +1,6 @@
 if st.sidebar.button("Go"):
-u_df = get_data("Users")
-if not u_df.empty:
+   u_df = get_data("Users")
+   if not u_df.empty:
             match = u_
             match = u_df[(u_df['Username'].astype(str) == u_attempt) & (u_df['Password'].astype(str) == str(p_attempt))]
             if not match.empty:
