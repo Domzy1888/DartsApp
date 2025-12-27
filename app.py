@@ -56,11 +56,41 @@ st.markdown("""
         background-size: cover; background-position: center;
         padding: 20px; margin-bottom: 10px;
     }
-    .match-wrapper { display: flex; align-items: center; justify-content: space-between; width: 100%; gap: 15px; }
-    .player-box { flex: 1; text-align: center; }
-    .player-img { width: 100%; max-width: 140px; border-radius: 10px; border: 2px solid #ffd700; }
-    .vs-text { color: #ffd700 !important; font-size: 2rem !important; font-weight: 900 !important; }
-    .player-name { font-size: 1.3rem !important; font-weight: 900 !important; color: #ffd700 !important; }
+        /* FIX: Centered Alignment for Mobile Match Cards */
+    .match-wrapper { 
+        display: flex; 
+        align-items: flex-start; /* Aligns items to the top */
+        justify-content: space-around; 
+        width: 100%; 
+        gap: 5px; 
+    }
+    .player-box { 
+        flex: 1; 
+        display: flex;
+        flex-direction: column;
+        align-items: center; /* Forces image and name to stay centered together */
+        text-align: center; 
+    }
+    .player-img { 
+        width: 100%; 
+        max-width: 120px; /* Slightly smaller to fit side-by-side better */
+        border-radius: 10px; 
+        border: 2px solid #ffd700; 
+    }
+    .vs-text { 
+        color: #ffd700 !important; 
+        font-size: 1.5rem !important; /* Smaller VS for mobile spacing */
+        font-weight: 900 !important; 
+        margin-top: 40px; /* Pushes VS down to the middle of the images */
+    }
+    .player-name { 
+        font-size: 1.1rem !important; 
+        font-weight: 900 !important; 
+        color: #ffd700 !important; 
+        margin-top: 10px;
+        min-height: 3em; /* Ensures boxes stay the same height even with long names */
+    }
+
     
     .timer-text { font-weight: bold; font-size: 1.1rem; text-align: center; margin-bottom: 15px; }
     .timer-urgent { animation: pulse-red 1s infinite; font-weight: 900; }
