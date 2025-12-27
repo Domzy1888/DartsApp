@@ -10,7 +10,7 @@ st.set_page_config(
 
 # 2. AUTHENTICATION GATE
 # This ensures users log in before seeing any data or hearing music
-add_auth(required=True)
+# add_auth(required=True)
 
 # 3. CUSTOM CSS (Hide Audio Player & Branding, Keep Sidebar Toggle)
 st.markdown("""
