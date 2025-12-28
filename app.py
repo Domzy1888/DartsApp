@@ -159,20 +159,33 @@ def get_leaderboard_data():
     merged['Pts'] = merged.apply(calc, axis=1)
     return merged.groupby('Username')['Pts'].sum().reset_index().rename(columns={'Pts': 'Current Points'}).sort_values('Current Points', ascending=False)
 
-# --- PAGE: PREDICTIONS (Stability Update) ---
+# --- PAGE: PREDICTIONS (Fixed Version) ---
 if page == "Predictions":
     if st.session_state['username'] == "":
         st.warning("Please sign in.")
     else:
         st.title("Upcoming Matches")
-        # ... (keep your data fetching and date filter code here)
+        
+        # 1. FETCH DATA
+        m_df = get_data("Matches").dropna(subset=['Match_ID', 'Player1', 'Date'])
+        p_df = get_data("Predictions")
+        r_df = get_data("Results")
+        now = datetime.now()
 
+        # 2. CALCULATE DAYS (This fixes the NameError)
+        m_df['Date_Parsed'] = pd.to_datetime(m_df['Date'], errors='coerce')
+        m_df = m_df.dropna(subset=['Date_Parsed'])
+        days = sorted(m_df['Date_Parsed'].dt.date.unique())
+        
+        # 3. SHOW DROPDOWN AND FORM
         if days:
             sel_day = st.selectbox("📅 Select Match Day", days)
             day_matches = m_df[m_df['Date_Parsed'].dt.date == sel_day]
             
-            # 1. Start the Form
+            # Now the form starts...
             with st.form("prediction_form", clear_on_submit=False):
+                # ... rest of your code ...
+
                 open_list = []
                 
                 for _, row in day_matches.iterrows():
