@@ -159,56 +159,56 @@ def get_leaderboard_data():
     merged['Pts'] = merged.apply(calc, axis=1)
     return merged.groupby('Username')['Pts'].sum().reset_index().rename(columns={'Pts': 'Current Points'}).sort_values('Current Points', ascending=False)
 
-# --- PAGE: PREDICTIONS ---
+# --- PAGE: PREDICTIONS (Stability Update) ---
 if page == "Predictions":
     if st.session_state['username'] == "":
         st.warning("Please sign in.")
     else:
         st.title("Upcoming Matches")
-        m_df = get_data("Matches").dropna(subset=['Match_ID', 'Player1', 'Date'])
-        p_df = get_data("Predictions")
-        r_df = get_data("Results")
-        now = datetime.now()
+        # ... (keep your data fetching and date filter code here)
 
-        m_df['Date_Parsed'] = pd.to_datetime(m_df['Date'], errors='coerce')
-        m_df = m_df.dropna(subset=['Date_Parsed'])
-        days = sorted(m_df['Date_Parsed'].dt.date.unique())
-        
         if days:
             sel_day = st.selectbox("📅 Select Match Day", days)
             day_matches = m_df[m_df['Date_Parsed'].dt.date == sel_day]
             
-            open_list = []
-            for _, row in day_matches.iterrows():
-                mid = str(row['Match_ID']).replace('.0', '')
-                if not r_df.empty and mid in r_df['Match_ID'].astype(str).str.replace('.0', '', regex=False).values: continue
+            # 1. Start the Form
+            with st.form("prediction_form", clear_on_submit=False):
+                open_list = []
                 
-                diff = row['Date_Parsed'] - now
-                mins = diff.total_seconds() / 60
-                
-                if mins > 60: timer = f"<div class='timer-text' style='color:#00ff00;'>Starts in {int(mins/60)}h {int(mins%60)}m</div>"
-                elif 10 < mins <= 60: timer = f"<div class='timer-text' style='color:#ffd700;'>Starts in {int(mins)}m</div>"
-                elif 0 < mins <= 10: timer = f"<div class='timer-text timer-urgent'>⚠️ STARTING IN {int(mins)}m</div>"
-                else: timer = "<div class='timer-text' style='color:#ff4b4b;'>Locked / Live</div>"
+                for _, row in day_matches.iterrows():
+                    mid = str(row['Match_ID']).replace('.0', '')
+                    # ... (keep your timer and match-card HTML here)
 
-                st.markdown(f"<div class='match-card'>{timer}<div class='match-wrapper'><div class='player-box'><img src=\"{row.get('P1_Image', '')}\" class='player-img'><div class='player-name'>{row['Player1']}</div></div><div class='vs-text'>VS</div><div class='player-box'><img src=\"{row.get('P2_Image', '')}\" class='player-img'><div class='player-name'>{row['Player2']}</div></div></div></div>", unsafe_allow_html=True)
+                    st.markdown(f"<div class='match-card'>...</div>", unsafe_allow_html=True)
 
-                done = not p_df[(p_df['Username'] == st.session_state['username']) & (p_df['Match_ID'].astype(str).str.replace('.0', '', regex=False) == mid)].empty if not p_df.empty else False
+                    # Check if already predicted
+                    done = not p_df[(p_df['Username'] == st.session_state['username']) & 
+                                   (p_df['Match_ID'].astype(str).str.replace('.0', '', regex=False) == mid)].empty if not p_df.empty else False
 
-                if done: st.success("Prediction Locked ✅")
-                elif mins <= 0: st.error("Closed 🔒")
-                else:
-                    open_list.append(mid)
-                    c1, c2 = st.columns(2)
-                    with c1: s1 = st.selectbox(f"{row['Player1']}", range(11), key=f"s1_{mid}")
-                    with c2: s2 = st.selectbox(f"{row['Player2']}", range(11), key=f"s2_{mid}")
-                    if 'temp' not in st.session_state: st.session_state.temp = {}
-                    st.session_state.temp[mid] = f"{s1}-{s2}"
+                    if done: 
+                        st.success("Prediction Locked ✅")
+                    elif mins <= 0: 
+                        st.error("Closed 🔒")
+                    else:
+                        open_list.append(mid)
+                        c1, c2 = st.columns(2)
+                        with c1: s1 = st.selectbox(f"{row['Player1']}", range(11), key=f"s1_{mid}")
+                        with c2: s2 = st.selectbox(f"{row['Player2']}", range(11), key=f"s2_{mid}")
+                        
+                        if 'temp' not in st.session_state: st.session_state.temp = {}
+                        st.session_state.temp[mid] = f"{s1}-{s2}"
 
-            if open_list and st.button("🔒 LOCK ALL PREDICTIONS"):
-                new = [{"Username": st.session_state['username'], "Match_ID": m, "Score": st.session_state.temp.get(m, "0-0")} for m in open_list]
-                conn.update(spreadsheet=URL, worksheet="Predictions", data=pd.concat([p_df, pd.DataFrame(new)], ignore_index=True))
-                st.cache_data.clear(); st.success("Saved!"); time.sleep(1); st.rerun()
+                # 2. The Form Submit Button (Replaces your old button)
+                submit_button = st.form_submit_button("🔒 LOCK ALL PREDICTIONS", use_container_width=True)
+
+                if submit_button and open_list:
+                    new = [{"Username": st.session_state['username'], "Match_ID": m, "Score": st.session_state.temp.get(m, "0-0")} for m in open_list]
+                    conn.update(spreadsheet=URL, worksheet="Predictions", data=pd.concat([p_df, pd.DataFrame(new)], ignore_index=True))
+                    st.cache_data.clear()
+                    st.success("Saved!")
+                    time.sleep(1)
+                    st.rerun()
+
 
 # --- PAGE: RIVAL WATCH ---
 elif page == "Rival Watch":
