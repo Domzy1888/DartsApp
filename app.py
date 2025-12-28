@@ -95,14 +95,24 @@ st.markdown("""
     .timer-text { font-weight: bold; font-size: 1.1rem; text-align: center; margin-bottom: 15px; }
     .timer-urgent { animation: pulse-red 1s infinite; font-weight: 900; }
     
-            /* Target BOTH standard buttons and form submit buttons */
-    div.stButton > button, div.stFormSubmitButton > button { 
-        background-color: #ffd700 !important; /* Your Gold Color */
-        color: black !important;             /* Force Text to Black */
-        font-weight: bold !important;        /* Make it stand out */
-        border-radius: 10px; 
-        width: 100%; 
+                /* This targets the button and the specific text container inside it */
+    div.stButton > button, 
+    div.stFormSubmitButton > button,
+    div.stButton > button div p, 
+    div.stFormSubmitButton > button div p {
+        background-color: #ffd700 !important;
+        color: black !important;
+        font-weight: 900 !important;
+        border-radius: 10px;
+        width: 100%;
     }
+
+    /* Added this to ensure the inner div also obeys the black color */
+    div.stButton > button > div, 
+    div.stFormSubmitButton > button > div {
+        color: black !important;
+    }
+
 
 
     </style>
