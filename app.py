@@ -95,7 +95,15 @@ st.markdown("""
     .timer-text { font-weight: bold; font-size: 1.1rem; text-align: center; margin-bottom: 15px; }
     .timer-urgent { animation: pulse-red 1s infinite; font-weight: 900; }
     
-    div.stButton > button { background-color: #ffd700 !important; color: black !important; font-weight: bold; border-radius: 10px; }
+        /* This targets BOTH regular buttons and form submit buttons */
+    div.stButton > button, div.stFormSubmitButton > button { 
+        background-color: #ffd700 !important; 
+        color: black !important; 
+        font-weight: bold; 
+        border-radius: 10px; 
+        width: 100%; /* Optional: ensures it stays full width */
+    }
+
     </style>
 """, unsafe_allow_html=True)
 
