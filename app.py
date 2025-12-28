@@ -95,14 +95,15 @@ st.markdown("""
     .timer-text { font-weight: bold; font-size: 1.1rem; text-align: center; margin-bottom: 15px; }
     .timer-urgent { animation: pulse-red 1s infinite; font-weight: 900; }
     
-        /* This targets BOTH regular buttons and form submit buttons */
+            /* Target BOTH standard buttons and form submit buttons */
     div.stButton > button, div.stFormSubmitButton > button { 
-        background-color: #ffd700 !important; 
-        color: black !important; 
-        font-weight: bold; 
+        background-color: #ffd700 !important; /* Your Gold Color */
+        color: black !important;             /* Force Text to Black */
+        font-weight: bold !important;        /* Make it stand out */
         border-radius: 10px; 
-        width: 100%; /* Optional: ensures it stays full width */
+        width: 100%; 
     }
+
 
     </style>
 """, unsafe_allow_html=True)
