@@ -2,3 +2,4 @@ streamlit>=1.42.0
 st-paywall>=1.0.0
 st-gsheets-connection
 pandas
+extra-streamlit-components
