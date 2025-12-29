@@ -100,14 +100,19 @@ st.markdown("""
     .timer-text { font-weight: bold; font-size: 1.1rem; text-align: center; margin-bottom: 15px; }
     .timer-urgent { animation: pulse-red 1s infinite; font-weight: 900; }
     
-    /* THE GOLD BUTTON FIX */
-    div.stButton > button, div.stFormSubmitButton > button {
+    /* THE GOLD BUTTON & BLACK TEXT RESET */
+    div.stButton > button, div.stFormSubmitButton > button, div.stButton > button p, .st-key-link_button a {
         background-color: #ffd700 !important; 
-        color: black !important; 
+        color: #000000 !important; 
         font-weight: 900 !important; 
         border-radius: 10px !important; 
         width: 100% !important;
         border: none !important;
+        text-decoration: none !important;
+    }
+    div.stButton > button:hover, div.stFormSubmitButton > button:hover {
+        border: 2px solid white !important;
+        color: #000000 !important;
     }
     </style>
 """, unsafe_allow_html=True)
@@ -243,7 +248,10 @@ elif page == "Highlights":
         </iframe>
     """, unsafe_allow_html=True)
     st.divider()
-    st.info("💡 Use the playlist icon in the top right of the video to browse older matches.")
+    c1, c2, c3 = st.columns([1, 2, 1])
+    with c2:
+        st.link_button("📂 View All PDC Videos on YouTube", "https://www.youtube.com/@OfficialPDC/videos")
+    st.info("💡 Tip: Tap the video while playing to see the scrollable list of recent matches at the bottom.")
 
 elif page == "Admin":
     st.title("⚙️ Admin Hub")
