@@ -9,7 +9,8 @@ import extra_streamlit_components as stx
 st.set_page_config(page_title="PDC Predictor Pro", page_icon="🎯", layout="wide")
 
 # --- 2. COOKIE MANAGER INITIALIZATION ---
-cookie_manager = stx.CookieManager(key="darts_cookie_manager")
+# We use a static key for the main manager
+cookie_manager = stx.CookieManager(key="main_darts_manager")
 
 # Essential delay for browser-to-app communication
 if 'cookies_synced' not in st.session_state:
@@ -113,7 +114,8 @@ st.sidebar.title("🎯 PDC PREDICTOR")
 
 mute_audio = st.sidebar.toggle("🔈 Mute Walk-on Music", value=initial_mute)
 if mute_audio != initial_mute and not st.session_state['logging_out']:
-    cookie_manager.set("pdc_mute", str(mute_audio), expires_at=datetime.now() + timedelta(days=30))
+    # Use a dynamic key to avoid collision
+    cookie_manager.set("pdc_mute", str(mute_audio), expires_at=datetime.now() + timedelta(days=30), key="set_mute_pref")
 
 st.sidebar.divider()
 
@@ -128,7 +130,8 @@ if st.session_state['username'] == "":
             if not match.empty:
                 st.session_state['username'] = u_attempt
                 st.session_state['logging_out'] = False
-                cookie_manager.set("pdc_user_login", u_attempt, expires_at=datetime.now() + timedelta(days=30))
+                # DYNAMIC KEY FIX: unique key for login write
+                cookie_manager.set("pdc_user_login", u_attempt, expires_at=datetime.now() + timedelta(days=30), key="login_success_key")
                 st.rerun()
             else: st.sidebar.error("Invalid Login")
 else:
@@ -140,7 +143,7 @@ else:
     
     page = st.sidebar.radio("Navigate", page_options, index=initial_page_index)
     if page != saved_page and not st.session_state['logging_out']:
-        cookie_manager.set("pdc_page", page, expires_at=datetime.now() + timedelta(days=30))
+        cookie_manager.set("pdc_page", page, expires_at=datetime.now() + timedelta(days=30), key="set_page_pref")
 
     # --- PROTECTED LOGOUT LOGIC ---
     if st.sidebar.button("Logout"):
@@ -148,7 +151,8 @@ else:
         st.session_state['username'] = ""
         st.session_state['audio_played'] = False
         try:
-            cookie_manager.delete("pdc_user_login")
+            # DYNAMIC KEY FIX: unique key for delete
+            cookie_manager.delete("pdc_user_login", key="logout_delete_key")
         except:
             pass
         time.sleep(0.5)
