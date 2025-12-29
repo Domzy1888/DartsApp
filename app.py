@@ -11,7 +11,7 @@ st.set_page_config(page_title="PDC Predictor Pro", page_icon="🎯", layout="wid
 # --- 2. COOKIE MANAGER INITIALIZATION ---
 cookie_manager = stx.CookieManager(key="darts_cookie_manager")
 
-# Give the browser a moment to send the cookies back
+# Essential delay for browser-to-app communication
 if 'cookies_synced' not in st.session_state:
     time.sleep(1.2) 
     st.session_state['cookies_synced'] = True
@@ -31,7 +31,7 @@ if st.session_state['username'] == "" and not st.session_state['logging_out']:
         st.session_state['username'] = saved_user
         st.rerun()
 
-# Sync Mute & Page Preferences
+# Sync Preferences
 saved_mute = cookie_manager.get(cookie="pdc_mute")
 initial_mute = True if saved_mute == "True" else False
 
@@ -111,7 +111,6 @@ st.markdown("""
 # --- SIDEBAR & AUTH ---
 st.sidebar.title("🎯 PDC PREDICTOR")
 
-# Mute Toggle (With safety check)
 mute_audio = st.sidebar.toggle("🔈 Mute Walk-on Music", value=initial_mute)
 if mute_audio != initial_mute and not st.session_state['logging_out']:
     cookie_manager.set("pdc_mute", str(mute_audio), expires_at=datetime.now() + timedelta(days=30))
@@ -139,29 +138,23 @@ else:
 
     st.sidebar.write(f"Logged in: **{st.session_state['username']}**")
     
-    # NAVIGATION (With safety check)
     page = st.sidebar.radio("Navigate", page_options, index=initial_page_index)
     if page != saved_page and not st.session_state['logging_out']:
         cookie_manager.set("pdc_page", page, expires_at=datetime.now() + timedelta(days=30))
 
-        if st.sidebar.button("Logout"):
+    # --- PROTECTED LOGOUT LOGIC ---
+    if st.sidebar.button("Logout"):
         st.session_state['logging_out'] = True
         st.session_state['username'] = ""
         st.session_state['audio_played'] = False
-        
-        # We wrap this in a try/except to prevent the KeyError crash
         try:
             cookie_manager.delete("pdc_user_login")
-        except Exception:
-            # If the cookie is already gone or errors out, we don't care, 
-            # as long as the session_state is cleared above.
+        except:
             pass
-            
         time.sleep(0.5)
         st.rerun()
 
-
-# --- SCORING ENGINE & PAGES (Remaining code unchanged) ---
+# --- SCORING ENGINE ---
 def get_leaderboard_data():
     p_df = get_data("Predictions")
     r_df = get_data("Results")
@@ -181,6 +174,7 @@ def get_leaderboard_data():
     merged['Pts'] = merged.apply(calc, axis=1)
     return merged.groupby('Username')['Pts'].sum().reset_index().rename(columns={'Pts': 'Current Points'}).sort_values('Current Points', ascending=False)
 
+# --- PAGES ---
 if page == "Predictions":
     if st.session_state['username'] == "":
         st.warning("Please sign in.")
