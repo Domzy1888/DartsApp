@@ -32,7 +32,7 @@ pref_manager = stx.CookieManager(key="pref_loader")
 saved_mute = pref_manager.get(cookie="pdc_mute")
 initial_mute = True if saved_mute == "True" else False
 saved_page = pref_manager.get(cookie="pdc_page")
-page_options = ["Predictions", "Leaderboard", "Rival Watch", "Admin"]
+page_options = ["Predictions", "Leaderboard", "Rival Watch", "Highlights", "Admin"]
 initial_page_index = page_options.index(saved_page) if saved_page in page_options else 0
 page = saved_page if saved_page in page_options else "Predictions"
 
@@ -99,7 +99,16 @@ st.markdown("""
     .player-name { font-size: 1.1rem !important; font-weight: 900 !important; color: #ffd700 !important; margin-top: 10px; min-height: 3em; }
     .timer-text { font-weight: bold; font-size: 1.1rem; text-align: center; margin-bottom: 15px; }
     .timer-urgent { animation: pulse-red 1s infinite; font-weight: 900; }
-    div.stButton > button { background-color: #ffd700 !important; color: black !important; font-weight: 900 !important; border-radius: 10px; width: 100% !important; }
+    
+    /* THE GOLD BUTTON FIX */
+    div.stButton > button, div.stFormSubmitButton > button {
+        background-color: #ffd700 !important; 
+        color: black !important; 
+        font-weight: 900 !important; 
+        border-radius: 10px !important; 
+        width: 100% !important;
+        border: none !important;
+    }
     </style>
 """, unsafe_allow_html=True)
 
@@ -219,6 +228,22 @@ elif page == "Rival Watch":
             match_p = p_df[p_df['MID'] == target].drop_duplicates('Username', keep='last')
             rivals = match_p.merge(lb, on="Username", how="left").fillna(0)
             st.dataframe(rivals[['Username', 'Score', 'Current Points']], hide_index=True, width="stretch")
+
+elif page == "Highlights":
+    st.title("📺 PDC Highlights")
+    st.write("Catch up on the latest action from the official PDC YouTube Channel.")
+    pdc_playlist_url = "https://www.youtube.com/embed?listType=user_uploads&list=OfficialPDC"
+    st.markdown(f"""
+        <iframe width="100%" height="600" 
+        src="{pdc_playlist_url}" 
+        title="PDC YouTube Highlights" 
+        frameborder="0" 
+        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" 
+        allowfullscreen style="border-radius:15px; border: 2px solid #ffd700;">
+        </iframe>
+    """, unsafe_allow_html=True)
+    st.divider()
+    st.info("💡 Use the playlist icon in the top right of the video to browse older matches.")
 
 elif page == "Admin":
     st.title("⚙️ Admin Hub")
