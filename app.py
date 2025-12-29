@@ -8,13 +8,12 @@ import extra_streamlit_components as stx
 # 1. Page Configuration
 st.set_page_config(page_title="PDC Predictor Pro", page_icon="🎯", layout="wide")
 
-# --- 2. COOKIE MANAGER INITIALIZATION (Top Priority) ---
-# We initialize this immediately so it can start talking to the browser
+# --- 2. COOKIE MANAGER INITIALIZATION ---
 cookie_manager = stx.CookieManager(key="darts_cookie_manager")
 
-# Give the browser a moment to send the cookies back to the app
+# Give the browser a moment to send the cookies back
 if 'cookies_synced' not in st.session_state:
-    time.sleep(1.2) # Essential for Mobile/Safari stability
+    time.sleep(1.2) 
     st.session_state['cookies_synced'] = True
 
 # --- 3. SESSION STATE & COOKIE SYNC ---
@@ -22,9 +21,11 @@ if 'username' not in st.session_state:
     st.session_state['username'] = ""
 if 'audio_played' not in st.session_state: 
     st.session_state['audio_played'] = False
+if 'logging_out' not in st.session_state:
+    st.session_state['logging_out'] = False
 
 # Sync Username from Cookie
-if st.session_state['username'] == "":
+if st.session_state['username'] == "" and not st.session_state['logging_out']:
     saved_user = cookie_manager.get(cookie="pdc_user_login")
     if saved_user:
         st.session_state['username'] = saved_user
@@ -110,8 +111,9 @@ st.markdown("""
 # --- SIDEBAR & AUTH ---
 st.sidebar.title("🎯 PDC PREDICTOR")
 
+# Mute Toggle (With safety check)
 mute_audio = st.sidebar.toggle("🔈 Mute Walk-on Music", value=initial_mute)
-if mute_audio != initial_mute:
+if mute_audio != initial_mute and not st.session_state['logging_out']:
     cookie_manager.set("pdc_mute", str(mute_audio), expires_at=datetime.now() + timedelta(days=30))
 
 st.sidebar.divider()
@@ -126,6 +128,7 @@ if st.session_state['username'] == "":
             match = u_df[(u_df['Username'].astype(str) == u_attempt) & (u_df['Password'].astype(str) == str(p_attempt))]
             if not match.empty:
                 st.session_state['username'] = u_attempt
+                st.session_state['logging_out'] = False
                 cookie_manager.set("pdc_user_login", u_attempt, expires_at=datetime.now() + timedelta(days=30))
                 st.rerun()
             else: st.sidebar.error("Invalid Login")
@@ -136,19 +139,20 @@ else:
 
     st.sidebar.write(f"Logged in: **{st.session_state['username']}**")
     
-    # NAVIGATION
+    # NAVIGATION (With safety check)
     page = st.sidebar.radio("Navigate", page_options, index=initial_page_index)
-    if page != saved_page:
+    if page != saved_page and not st.session_state['logging_out']:
         cookie_manager.set("pdc_page", page, expires_at=datetime.now() + timedelta(days=30))
 
     if st.sidebar.button("Logout"):
+        st.session_state['logging_out'] = True
         st.session_state['username'] = ""
         st.session_state['audio_played'] = False
         cookie_manager.delete("pdc_user_login")
         time.sleep(0.5)
         st.rerun()
 
-# --- SCORING ENGINE ---
+# --- SCORING ENGINE & PAGES (Remaining code unchanged) ---
 def get_leaderboard_data():
     p_df = get_data("Predictions")
     r_df = get_data("Results")
@@ -168,7 +172,6 @@ def get_leaderboard_data():
     merged['Pts'] = merged.apply(calc, axis=1)
     return merged.groupby('Username')['Pts'].sum().reset_index().rename(columns={'Pts': 'Current Points'}).sort_values('Current Points', ascending=False)
 
-# --- PAGES ---
 if page == "Predictions":
     if st.session_state['username'] == "":
         st.warning("Please sign in.")
