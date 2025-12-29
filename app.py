@@ -226,7 +226,10 @@ elif page == "Admin":
         m_df = get_data("Matches").dropna(subset=['Match_ID', 'Player1'])
         target = st.selectbox("Select Match", [f"{str(r['Match_ID']).replace('.0', '')}: {r['Player1']} vs {r['Player2']}" for _, r in m_df.iterrows()])
         c1, c2 = st.columns(2)
-        with c1: r1 = st.selectbox("P1", range(11)); with c2: r2 = st.selectbox("P2", range(11))
+        with c1: 
+            r1 = st.selectbox("P1", range(11))
+        with c2: 
+            r2 = st.selectbox("P2", range(11))
         if st.button("Submit Result"):
             old = get_data("Results")
             new = pd.concat([old, pd.DataFrame([{"Match_ID": target.split(":")[0], "Score": f"{r1}-{r2}"}])])
