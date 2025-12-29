@@ -143,12 +143,16 @@ else:
     if page != saved_page:
         cookie_manager.set("pdc_page", page, expires_at=datetime.now() + timedelta(days=30))
 
-    if st.sidebar.button("Logout"):
+        if st.sidebar.button("Logout"):
+        # Clear local memory
         st.session_state['username'] = ""
         st.session_state['audio_played'] = False
+        
+        # Only delete the login cookie - the others will reset on next login
         cookie_manager.delete("pdc_user_login")
-        cookie_manager.delete("pdc_page")
-        cookie_manager.delete("pdc_mute")
+        
+        # Small delay to let the browser process the deletion before rerunning
+        time.sleep(0.5)
         st.rerun()
 
 # --- SCORING ENGINE ---
