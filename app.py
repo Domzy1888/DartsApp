@@ -14,10 +14,10 @@ if 'username' not in st.session_state:
 if 'audio_played' not in st.session_state: 
     st.session_state['audio_played'] = False
 
-# --- 3. COOKIE MANAGER SETUP (Memory Fix) ---
+# --- 3. COOKIE MANAGER SETUP ---
 cookie_manager = stx.CookieManager(key="darts_cookie_manager")
 
-# Small delay to ensure mobile browsers sync
+# Give mobile browsers time to sync
 time.sleep(0.5)
 
 # A. Handle Username Cookie
@@ -32,13 +32,11 @@ if st.session_state['username'] == "":
 
 # B. Handle Mute Cookie
 saved_mute = cookie_manager.get(cookie="pdc_mute")
-# Default to False (music on) if no cookie exists
 initial_mute = True if saved_mute == "True" else False
 
 # C. Handle Page Cookie
 saved_page = cookie_manager.get(cookie="pdc_page")
 page_options = ["Predictions", "Leaderboard", "Rival Watch", "Admin"]
-# Default to Predictions (index 0) if no cookie exists
 initial_page_index = page_options.index(saved_page) if saved_page in page_options else 0
 
 # --- AUDIO SETTINGS ---
@@ -110,7 +108,6 @@ st.markdown("""
 # --- SIDEBAR & AUTH ---
 st.sidebar.title("🎯 PDC PREDICTOR")
 
-# Mute Toggle with Cookie Logic
 mute_audio = st.sidebar.toggle("🔈 Mute Walk-on Music", value=initial_mute)
 if mute_audio != initial_mute:
     cookie_manager.set("pdc_mute", str(mute_audio), expires_at=datetime.now() + timedelta(days=30))
@@ -131,27 +128,21 @@ if st.session_state['username'] == "":
                 st.rerun()
             else: st.sidebar.error("Invalid Login")
 else:
-    # Audio Player
     if not mute_audio and not st.session_state['audio_played']:
         st.audio(CHASE_THE_SUN_URL, format="audio/mp3", autoplay=True)
         st.session_state['audio_played'] = True
 
     st.sidebar.write(f"Logged in: **{st.session_state['username']}**")
     
-    # Navigation with Cookie Logic
     page = st.sidebar.radio("Navigate", page_options, index=initial_page_index)
     if page != saved_page:
         cookie_manager.set("pdc_page", page, expires_at=datetime.now() + timedelta(days=30))
 
-        if st.sidebar.button("Logout"):
-        # Clear local memory
+    # FIXED LOGOUT: Simplified to avoid Duplicate Key Error
+    if st.sidebar.button("Logout"):
         st.session_state['username'] = ""
         st.session_state['audio_played'] = False
-        
-        # Only delete the login cookie - the others will reset on next login
         cookie_manager.delete("pdc_user_login")
-        
-        # Small delay to let the browser process the deletion before rerunning
         time.sleep(0.5)
         st.rerun()
 
@@ -175,7 +166,7 @@ def get_leaderboard_data():
     merged['Pts'] = merged.apply(calc, axis=1)
     return merged.groupby('Username')['Pts'].sum().reset_index().rename(columns={'Pts': 'Current Points'}).sort_values('Current Points', ascending=False)
 
-# --- PAGE: PREDICTIONS ---
+# --- PAGES ---
 if page == "Predictions":
     if st.session_state['username'] == "":
         st.warning("Please sign in.")
@@ -225,7 +216,6 @@ if page == "Predictions":
                     conn.update(spreadsheet=URL, worksheet="Predictions", data=pd.concat([p_df, pd.DataFrame(new)], ignore_index=True))
                     st.cache_data.clear(); st.success("Saved!"); time.sleep(1); st.rerun()
 
-# --- OTHER PAGES ---
 elif page == "Rival Watch":
     st.title("👀 Rival Watch")
     m_df = get_data("Matches").dropna(subset=['Match_ID', 'Player1'])
