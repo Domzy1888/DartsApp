@@ -17,16 +17,16 @@ if 'audio_played' not in st.session_state:
 # --- COOKIE MANAGER SETUP ---
 cookie_manager = stx.CookieManager(key="darts_cookie_manager")
 
-# Small delay to allow JavaScript to communicate with the browser
-time.sleep(0.5) 
-
+# 1. Give the browser up to 1.5 seconds to report the cookie (Crucial for mobile)
 if st.session_state['username'] == "":
-    # Get all cookies and check if ours is inside
-    all_cookies = cookie_manager.get_all()
-    if all_cookies and "pdc_user_login" in all_cookies:
-        st.session_state['username'] = all_cookies["pdc_user_login"]
-        st.rerun() # Force a rerun once we've found the user
-
+    # We try up to 3 times with a small delay
+    for _ in range(3):
+        saved_user = cookie_manager.get(cookie="pdc_user_login")
+        if saved_user:
+            st.session_state['username'] = saved_user
+            st.rerun()
+            break
+        time.sleep(0.5) 
 
 # --- AUDIO SETTINGS ---
 CHASE_THE_SUN_URL = "https://github.com/Domzy1888/DartsApp/raw/refs/heads/main/ytmp3free.cc_darts-chase-the-sun-extended-15-minutes-youtubemp3free.org.mp3"
