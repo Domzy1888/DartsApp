@@ -1,0 +1,13 @@
+name: Daily Darts Reminder
+on:
+  schedule:
+    - cron: '0 12 * * *'  # This is 12:00 PM UTC
+  workflow_dispatch:      # This allows you to test it manually
+
+jobs:
+  ping_app:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Wake up App and Send Mail
+        run: |
+          curl -L "https://dartsapp.streamlit.app/?trigger_reminders=true"
