@@ -144,13 +144,22 @@ else:
     if page != saved_page and not st.session_state['logging_out']:
         cookie_manager.set("pdc_page", page, expires_at=datetime.now() + timedelta(days=30))
 
-    if st.sidebar.button("Logout"):
+        if st.sidebar.button("Logout"):
         st.session_state['logging_out'] = True
         st.session_state['username'] = ""
         st.session_state['audio_played'] = False
-        cookie_manager.delete("pdc_user_login")
+        
+        # We wrap this in a try/except to prevent the KeyError crash
+        try:
+            cookie_manager.delete("pdc_user_login")
+        except Exception:
+            # If the cookie is already gone or errors out, we don't care, 
+            # as long as the session_state is cleared above.
+            pass
+            
         time.sleep(0.5)
         st.rerun()
+
 
 # --- SCORING ENGINE & PAGES (Remaining code unchanged) ---
 def get_leaderboard_data():
