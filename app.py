@@ -4,13 +4,14 @@ import pandas as pd
 import time
 from datetime import datetime, timedelta
 import extra_streamlit_components as stx
-from sendgrid import SendGridAPIClient
-from sendgrid.helpers.mail import Mail
+import smtplib
+from email.mime.text import MIMEText
+from email.mime.multipart import MIMEMultipart
 
 # 1. Page Configuration
 st.set_page_config(page_title="PDC Predictor Pro", page_icon="🎯", layout="wide")
 
-# --- 2. THE BOOTSTRAP LOGIN (Cookie Check) ---
+# --- 2. THE BOOTSTRAP LOGIN (Cookie Fix) ---
 if 'username' not in st.session_state: 
     st.session_state['username'] = ""
 if 'audio_played' not in st.session_state: 
@@ -47,9 +48,9 @@ def get_data(worksheet):
     except:
         return pd.DataFrame()
 
-# --- 4. MAILING ENGINE ---
+# --- 4. GMAIL MAILING ENGINE ---
 def send_reminders():
-    """Triggered by GitHub Action to nudge users who haven't predicted."""
+    """Triggered by GitHub Action to nudge users via Gmail."""
     try:
         u_df = get_data("Users")
         p_df = get_data("Predictions")
@@ -62,31 +63,38 @@ def send_reminders():
         if not todays_mids:
             return "No matches today."
 
-        # Filter users with emails
+        # Filter users who have provided an email
+        users_with_email = u_df[u_df['Email'].astype(str).str.contains("@", na=False)]
         remind_count = 0
-        users_with_email = u_df[u_df['Email'].str.contains("@", na=False)]
         
+        # SMTP Setup using Secrets
+        server = smtplib.SMTP("smtp.gmail.com", 587)
+        server.starttls()
+        server.login(st.secrets["gmail"]["user"], st.secrets["gmail"]["password"])
+
         for _, user in users_with_email.iterrows():
-            # Check if user has already predicted for ANY of today's matches
             user_preds = p_df[p_df['Username'] == user['Username']]
             user_pred_mids = user_preds['Match_ID'].astype(str).str.replace('.0', '', regex=False).tolist()
             
-            # If they haven't predicted at least one of today's matches, send email
+            # If user hasn't predicted any of today's matches, send email
             if not any(mid in user_pred_mids for mid in todays_mids):
-                message = Mail(
-                    from_email=st.secrets["sendgrid"]["from_email"],
-                    to_emails=user['Email'],
-                    subject='🎯 PDC Predictor: Don\'t miss today\'s matches!',
-                    html_content=f'<strong>Hi {user["Username"]},</strong><br><br>Matches are starting today! Jump back into the app to lock in your scores and keep your spot on the leaderboard.<br><br>Good luck!'
-                )
-                sg = SendGridAPIClient(st.secrets["sendgrid"]["api_key"])
-                sg.send(message)
+                msg = MIMEMultipart()
+                msg['From'] = f"PDC Predictor <{st.secrets['gmail']['user']}>"
+                msg['To'] = user['Email']
+                msg['Subject'] = "🎯 Darts Reminder: Matches Start Today!"
+                
+                body = f"Hi {user['Username']},\n\nMatches are starting today! Don't forget to head over to the app and lock in your predictions to keep your spot on the leaderboard.\n\nGood luck!"
+                msg.attach(MIMEText(body, 'plain'))
+                
+                server.send_message(msg)
                 remind_count += 1
-        return f"Success: {remind_count} reminders sent."
+        
+        server.quit()
+        return f"Success: {remind_count} reminders sent via Gmail."
     except Exception as e:
-        return f"Mail Error: {str(e)}"
+        return f"Gmail Error: {str(e)}"
 
-# AUTO-TRIGGER CHECK (For GitHub Action)
+# AUTO-TRIGGER CHECK (Hidden endpoint for GitHub Actions)
 if st.query_params.get("trigger_reminders") == "true":
     result = send_reminders()
     st.write(result)
@@ -97,7 +105,7 @@ st.markdown("""
     <style>
     @keyframes pulse-red { 0% { color: #ff4b4b; opacity: 1; } 50% { color: #ff0000; opacity: 0.5; } 100% { color: #ff4b4b; opacity: 1; } }
     .stApp { background: linear-gradient(rgba(0,0,0,0.6), rgba(0,0,0,0.6)), url("https://cdn.images.express.co.uk/img/dynamic/4/590x/secondary/5856693.jpg?r=1735554407217"); background-size: cover; background-attachment: fixed; }
-    h1, h2, h3, p, label, .stMarkdown { color: white !important; font-weight: bold; }
+    h1, h2, h3, p, label { color: white !important; font-weight: bold; }
     [data-testid="stSidebarContent"] { background-color: #111111 !important; }
     .match-card { border: 2px solid #ffd700; border-radius: 20px; background-image: linear-gradient(rgba(0,0,0,0.5), rgba(0,0,0,0.5)), url("https://news.paddypower.com/assets/uploads/2023/12/Paddy-Power-World-Darts-Championship.jpg"); background-size: cover; padding: 20px; margin-bottom: 10px; }
     .match-wrapper { display: flex; align-items: flex-start; justify-content: space-around; width: 100%; gap: 5px; }
@@ -127,20 +135,22 @@ if st.session_state['username'] == "":
     email_val = ""
     if auth_mode == "Register":
         email_val = st.sidebar.text_input("Email (Optional)").strip()
-        st.sidebar.caption("Leave blank if you don't want reminders.")
+        st.sidebar.caption("Provide an email if you want matchday reminders.")
 
     if st.sidebar.button("Go"):
         u_df = get_data("Users")
         if auth_mode == "Register":
             if u_attempt and p_attempt:
                 if not u_df.empty and u_attempt in u_df['Username'].astype(str).values:
-                    st.sidebar.error("Username taken.")
+                    st.sidebar.error("Username already exists.")
                 else:
                     new_user = pd.DataFrame([{"Username": u_attempt, "Password": p_attempt, "Email": email_val}])
                     conn.update(spreadsheet=URL, worksheet="Users", data=pd.concat([u_df, new_user], ignore_index=True))
-                    st.sidebar.success("Account Created! Please Login.")
+                    st.sidebar.success("Account created! Please Login.")
                     time.sleep(1)
                     st.rerun()
+            else:
+                st.sidebar.warning("Please enter username and password.")
         else:
             if not u_df.empty:
                 match = u_df[(u_df['Username'].astype(str) == u_attempt) & (u_df['Password'].astype(str) == str(p_attempt))]
@@ -165,11 +175,13 @@ else:
         st.session_state['logging_out'] = True
         st.session_state['username'] = ""
         st.session_state['audio_played'] = False
-        try: stx.CookieManager(key="del_login").delete("pdc_user_login")
+        try:
+            stx.CookieManager(key="del_login").delete("pdc_user_login")
         except: pass
-        time.sleep(0.5); st.rerun()
+        time.sleep(0.5)
+        st.rerun()
 
-# --- 7. LOGIC & PAGES ---
+# --- 7. SCORING ENGINE ---
 def get_leaderboard_data():
     p_df = get_data("Predictions")
     r_df = get_data("Results")
@@ -187,14 +199,19 @@ def get_leaderboard_data():
     merged['Pts'] = merged.apply(calc, axis=1)
     return merged.groupby('Username')['Pts'].sum().reset_index().rename(columns={'Pts': 'Current Points'}).sort_values('Current Points', ascending=False)
 
+# --- 8. PAGES ---
 if page == "Predictions":
-    if st.session_state['username'] == "": st.warning("Please sign in.")
+    if st.session_state['username'] == "":
+        st.warning("Please sign in from the sidebar.")
     else:
         st.title("Upcoming Matches")
         m_df = get_data("Matches").dropna(subset=['Match_ID', 'Player1', 'Date'])
-        p_df = get_data("Predictions"); r_df = get_data("Results"); now = datetime.now()
+        p_df = get_data("Predictions")
+        r_df = get_data("Results")
+        now = datetime.now()
         m_df['Date_Parsed'] = pd.to_datetime(m_df['Date'], errors='coerce')
         days = sorted(m_df['Date_Parsed'].dt.date.unique())
+        
         if days:
             sel_day = st.selectbox("📅 Select Match Day", days)
             day_matches = m_df[m_df['Date_Parsed'].dt.date == sel_day]
@@ -203,13 +220,22 @@ if page == "Predictions":
                 for _, row in day_matches.iterrows():
                     mid = str(row['Match_ID']).replace('.0', '')
                     if not r_df.empty and mid in r_df['Match_ID'].astype(str).str.replace('.0', '', regex=False).values: continue
+                    
                     diff = row['Date_Parsed'] - now
                     mins = diff.total_seconds() / 60
-                    timer = f"<div class='timer-text'>Starts: {row['Date']}</div>"
+                    
+                    if mins > 60: timer = f"<div class='timer-text' style='color:#00ff00;'>Starts: {row['Date']}</div>"
+                    elif 0 < mins <= 60: timer = f"<div class='timer-text timer-urgent'>⚠️ STARTING SOON</div>"
+                    else: timer = "<div class='timer-text' style='color:#ff4b4b;'>Locked / Live</div>"
+
                     st.markdown(f"<div class='match-card'>{timer}<div class='match-wrapper'><div class='player-box'><img src=\"{row.get('P1_Image', '')}\" class='player-img'><div class='player-name'>{row['Player1']}</div></div><div class='vs-text'>VS</div><div class='player-box'><img src=\"{row.get('P2_Image', '')}\" class='player-img'><div class='player-name'>{row['Player2']}</div></div></div></div>", unsafe_allow_html=True)
+
                     done = not p_df[(p_df['Username'] == st.session_state['username']) & (p_df['Match_ID'].astype(str).str.replace('.0', '', regex=False) == mid)].empty if not p_df.empty else False
-                    if done: st.success("Prediction Locked ✅")
-                    elif mins <= 0: st.error("Closed 🔒")
+                    
+                    if done:
+                        st.success("Prediction Locked ✅")
+                    elif mins <= 0:
+                        st.error("Closed 🔒")
                     else:
                         open_list.append(mid)
                         c1, c2 = st.columns(2)
@@ -217,10 +243,14 @@ if page == "Predictions":
                         with c2: s2 = st.selectbox(f"{row['Player2']}", range(11), key=f"s2_{mid}")
                         if 'temp' not in st.session_state: st.session_state.temp = {}
                         st.session_state.temp[mid] = f"{s1}-{s2}"
+                
                 if st.form_submit_button("🔒 LOCK ALL PREDICTIONS") and open_list:
                     new = [{"Username": st.session_state['username'], "Match_ID": m, "Score": st.session_state.temp.get(m, "0-0")} for m in open_list]
                     conn.update(spreadsheet=URL, worksheet="Predictions", data=pd.concat([p_df, pd.DataFrame(new)], ignore_index=True))
-                    st.cache_data.clear(); st.success("Saved!"); time.sleep(1); st.rerun()
+                    st.cache_data.clear()
+                    st.success("Saved! Your dart is on the board.")
+                    time.sleep(1)
+                    st.rerun()
 
 elif page == "Leaderboard":
     st.title("🏆 Leaderboard")
@@ -232,23 +262,31 @@ elif page == "Rival Watch":
     p_df = get_data("Predictions")
     opts = [f"{str(r['Match_ID']).replace('.0', '')}: {r['Player1']} vs {r['Player2']}" for _, r in m_df.iterrows()]
     if opts:
-        sel = st.selectbox("Pick a Match:", opts)
-        target = sel.split(":")[0]; lb = get_leaderboard_data()
+        sel = st.selectbox("Pick a Match to see Rival picks:", opts)
+        target = sel.split(":")[0]
+        lb = get_leaderboard_data()
         if not p_df.empty:
             p_df['MID'] = p_df['Match_ID'].astype(str).str.replace('.0', '', regex=False)
             match_p = p_df[p_df['MID'] == target].drop_duplicates('Username', keep='last')
             rivals = match_p.merge(lb, on="Username", how="left").fillna(0)
+            rivals['Current Points'] = rivals['Current Points'].astype(int)
             st.dataframe(rivals[['Username', 'Score', 'Current Points']], hide_index=True, width="stretch")
+        else:
+            st.info("No predictions found for this match.")
 
 elif page == "Admin":
     st.title("⚙️ Admin Hub")
     if st.text_input("Admin Password", type="password") == "darts2025":
+        st.subheader("Publish Result")
         m_df = get_data("Matches").dropna(subset=['Match_ID', 'Player1'])
-        target = st.selectbox("Select Match", [f"{str(r['Match_ID']).replace('.0', '')}: {r['Player1']} vs {r['Player2']}" for _, r in m_df.iterrows()])
+        target = st.selectbox("Select Finished Match", [f"{str(r['Match_ID']).replace('.0', '')}: {r['Player1']} vs {r['Player2']}" for _, r in m_df.iterrows()])
         c1, c2 = st.columns(2)
-        with c1: r1 = st.selectbox("P1", range(11)); with c2: r2 = st.selectbox("P2", range(11))
-        if st.button("Submit Result"):
+        with c1: r1 = st.selectbox("P1 Score", range(11))
+        with c2: r2 = st.selectbox("P2 Score", range(11))
+        if st.button("Submit Official Result"):
             old = get_data("Results")
-            new = pd.concat([old, pd.DataFrame([{"Match_ID": target.split(":")[0], "Score": f"{r1}-{r2}"}])])
-            conn.update(spreadsheet=URL, worksheet="Results", data=new)
-            st.cache_data.clear(); st.success("Result Published!"); st.rerun()
+            new_res = pd.DataFrame([{"Match_ID": target.split(":")[0], "Score": f"{r1}-{r2}"}])
+            conn.update(spreadsheet=URL, worksheet="Results", data=pd.concat([old, new_res], ignore_index=True))
+            st.cache_data.clear()
+            st.success("Result Published! Leaderboard updated.")
+            st.rerun()
