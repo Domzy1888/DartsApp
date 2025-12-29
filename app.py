@@ -100,8 +100,14 @@ st.markdown("""
     .timer-text { font-weight: bold; font-size: 1.1rem; text-align: center; margin-bottom: 15px; }
     .timer-urgent { animation: pulse-red 1s infinite; font-weight: 900; }
     
-    /* THE GOLD BUTTON & BLACK TEXT RESET */
-    div.stButton > button, div.stFormSubmitButton > button, div.stButton > button p, .st-key-link_button a {
+    /* THE ULTIMATE GLOBAL BUTTON FIX */
+    /* This targets regular buttons, form buttons, and link buttons all at once */
+    div.stButton > button, 
+    div.stFormSubmitButton > button, 
+    div[data-testid="stHeaderActionElements"] button,
+    .st-key-link_button a,
+    div.stButton > button p,
+    div.stFormSubmitButton > button p {
         background-color: #ffd700 !important; 
         color: #000000 !important; 
         font-weight: 900 !important; 
@@ -109,10 +115,15 @@ st.markdown("""
         width: 100% !important;
         border: none !important;
         text-decoration: none !important;
+        opacity: 1 !important;
     }
-    div.stButton > button:hover, div.stFormSubmitButton > button:hover {
-        border: 2px solid white !important;
+    
+    /* Ensure hover states also maintain black text */
+    div.stButton > button:hover, 
+    div.stFormSubmitButton > button:hover,
+    .st-key-link_button a:hover {
         color: #000000 !important;
+        border: 2px solid white !important;
     }
     </style>
 """, unsafe_allow_html=True)
@@ -250,7 +261,7 @@ elif page == "Highlights":
     st.divider()
     c1, c2, c3 = st.columns([1, 2, 1])
     with c2:
-        st.link_button("📂 View All PDC Videos on YouTube", "https://www.youtube.com/@OfficialPDC/videos")
+        st.link_button("📂 View All PDC Videos on YouTube", "https://www.youtube.com/@OfficialPDC/videos", key="link_button")
     st.info("💡 Tip: Tap the video while playing to see the scrollable list of recent matches at the bottom.")
 
 elif page == "Admin":
