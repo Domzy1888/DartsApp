@@ -143,7 +143,7 @@ if st.session_state['username'] == "":
     auth_mode = st.sidebar.radio("Entry", ["Login", "Register"])
     u_attempt = st.sidebar.text_input("Username").strip()
     p_attempt = st.sidebar.text_input("Password", type="password")
-        if st.sidebar.button("Go"):
+    if st.sidebar.button("Go"):
         u_df = get_data("Users")
         if not u_df.empty:
             match = u_df[(u_df['Username'].astype(str) == u_attempt) & (u_df['Password'].astype(str) == str(p_attempt))]
