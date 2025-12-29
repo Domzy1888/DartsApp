@@ -5,28 +5,41 @@ import time
 from datetime import datetime, timedelta
 import extra_streamlit_components as stx
 
-# 1. Page Configuration (Must be the very first Streamlit command)
+# 1. Page Configuration
 st.set_page_config(page_title="PDC Predictor Pro", page_icon="🎯", layout="wide")
 
-# --- 2. SESSION STATE INIT (FIXED: Moved to top) ---
+# --- 2. SESSION STATE INIT ---
 if 'username' not in st.session_state: 
     st.session_state['username'] = ""
 if 'audio_played' not in st.session_state: 
     st.session_state['audio_played'] = False
 
-# --- COOKIE MANAGER SETUP ---
+# --- 3. COOKIE MANAGER SETUP (Memory Fix) ---
 cookie_manager = stx.CookieManager(key="darts_cookie_manager")
 
-# 1. Give the browser up to 1.5 seconds to report the cookie (Crucial for mobile)
+# Small delay to ensure mobile browsers sync
+time.sleep(0.5)
+
+# A. Handle Username Cookie
 if st.session_state['username'] == "":
-    # We try up to 3 times with a small delay
     for _ in range(3):
         saved_user = cookie_manager.get(cookie="pdc_user_login")
         if saved_user:
             st.session_state['username'] = saved_user
             st.rerun()
             break
-        time.sleep(0.5) 
+        time.sleep(0.5)
+
+# B. Handle Mute Cookie
+saved_mute = cookie_manager.get(cookie="pdc_mute")
+# Default to False (music on) if no cookie exists
+initial_mute = True if saved_mute == "True" else False
+
+# C. Handle Page Cookie
+saved_page = cookie_manager.get(cookie="pdc_page")
+page_options = ["Predictions", "Leaderboard", "Rival Watch", "Admin"]
+# Default to Predictions (index 0) if no cookie exists
+initial_page_index = page_options.index(saved_page) if saved_page in page_options else 0
 
 # --- AUDIO SETTINGS ---
 CHASE_THE_SUN_URL = "https://github.com/Domzy1888/DartsApp/raw/refs/heads/main/ytmp3free.cc_darts-chase-the-sun-extended-15-minutes-youtubemp3free.org.mp3"
@@ -96,7 +109,12 @@ st.markdown("""
 
 # --- SIDEBAR & AUTH ---
 st.sidebar.title("🎯 PDC PREDICTOR")
-mute_audio = st.sidebar.toggle("🔈 Mute Walk-on Music", value=False)
+
+# Mute Toggle with Cookie Logic
+mute_audio = st.sidebar.toggle("🔈 Mute Walk-on Music", value=initial_mute)
+if mute_audio != initial_mute:
+    cookie_manager.set("pdc_mute", str(mute_audio), expires_at=datetime.now() + timedelta(days=30))
+
 st.sidebar.divider()
 
 if st.session_state['username'] == "":
@@ -109,24 +127,29 @@ if st.session_state['username'] == "":
             match = u_df[(u_df['Username'].astype(str) == u_attempt) & (u_df['Password'].astype(str) == str(p_attempt))]
             if not match.empty:
                 st.session_state['username'] = u_attempt
-                # SAVE THE COOKIE
                 cookie_manager.set("pdc_user_login", u_attempt, expires_at=datetime.now() + timedelta(days=30))
                 st.rerun()
             else: st.sidebar.error("Invalid Login")
 else:
+    # Audio Player
     if not mute_audio and not st.session_state['audio_played']:
         st.audio(CHASE_THE_SUN_URL, format="audio/mp3", autoplay=True)
         st.session_state['audio_played'] = True
 
     st.sidebar.write(f"Logged in: **{st.session_state['username']}**")
+    
+    # Navigation with Cookie Logic
+    page = st.sidebar.radio("Navigate", page_options, index=initial_page_index)
+    if page != saved_page:
+        cookie_manager.set("pdc_page", page, expires_at=datetime.now() + timedelta(days=30))
+
     if st.sidebar.button("Logout"):
         st.session_state['username'] = ""
         st.session_state['audio_played'] = False
         cookie_manager.delete("pdc_user_login")
+        cookie_manager.delete("pdc_page")
+        cookie_manager.delete("pdc_mute")
         st.rerun()
-
-st.sidebar.divider()
-page = st.sidebar.radio("Navigate", ["Predictions", "Leaderboard", "Rival Watch", "Admin"])
 
 # --- SCORING ENGINE ---
 def get_leaderboard_data():
