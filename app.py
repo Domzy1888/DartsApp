@@ -160,7 +160,7 @@ else:
         st.session_state['audio_played'] = True
 
     st.sidebar.write(f"Logged in: **{st.session_state['username']}**")
-        if st.sidebar.button("Logout"):
+    if st.sidebar.button("Logout"):
         st.session_state['username'] = ""
         st.session_state['audio_played'] = False
         # DELETE THE COOKIE
