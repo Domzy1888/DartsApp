@@ -8,39 +8,38 @@ import extra_streamlit_components as stx
 # 1. Page Configuration
 st.set_page_config(page_title="PDC Predictor Pro", page_icon="🎯", layout="wide")
 
-# --- 2. SESSION STATE & FALLBACKS (FIXED: Added page fallback) ---
+# --- 2. COOKIE MANAGER INITIALIZATION (Top Priority) ---
+# We initialize this immediately so it can start talking to the browser
+cookie_manager = stx.CookieManager(key="darts_cookie_manager")
+
+# Give the browser a moment to send the cookies back to the app
+if 'cookies_synced' not in st.session_state:
+    time.sleep(1.2) # Essential for Mobile/Safari stability
+    st.session_state['cookies_synced'] = True
+
+# --- 3. SESSION STATE & COOKIE SYNC ---
 if 'username' not in st.session_state: 
     st.session_state['username'] = ""
 if 'audio_played' not in st.session_state: 
     st.session_state['audio_played'] = False
 
-# This prevents the NameError you saw
-page = "Predictions" 
-page_options = ["Predictions", "Leaderboard", "Rival Watch", "Admin"]
-
-# --- 3. COOKIE MANAGER SETUP ---
-cookie_manager = stx.CookieManager(key="darts_cookie_manager")
-
-# Give mobile browsers time to sync
-time.sleep(0.5)
-
-# A. Handle Username Cookie
+# Sync Username from Cookie
 if st.session_state['username'] == "":
-    for _ in range(3):
-        saved_user = cookie_manager.get(cookie="pdc_user_login")
-        if saved_user:
-            st.session_state['username'] = saved_user
-            st.rerun()
-            break
-        time.sleep(0.5)
+    saved_user = cookie_manager.get(cookie="pdc_user_login")
+    if saved_user:
+        st.session_state['username'] = saved_user
+        st.rerun()
 
-# B. Handle Mute Cookie
+# Sync Mute & Page Preferences
 saved_mute = cookie_manager.get(cookie="pdc_mute")
 initial_mute = True if saved_mute == "True" else False
 
-# C. Handle Page Cookie (Memory)
 saved_page = cookie_manager.get(cookie="pdc_page")
+page_options = ["Predictions", "Leaderboard", "Rival Watch", "Admin"]
 initial_page_index = page_options.index(saved_page) if saved_page in page_options else 0
+
+# Set the active page variable
+page = saved_page if saved_page in page_options else "Predictions"
 
 # --- AUDIO SETTINGS ---
 CHASE_THE_SUN_URL = "https://github.com/Domzy1888/DartsApp/raw/refs/heads/main/ytmp3free.cc_darts-chase-the-sun-extended-15-minutes-youtubemp3free.org.mp3"
