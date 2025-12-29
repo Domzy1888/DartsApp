@@ -3,6 +3,16 @@ from streamlit_gsheets import GSheetsConnection
 import pandas as pd
 import time
 from datetime import datetime
+import extra_streamlit_components as stx
+
+# --- COOKIE MANAGER SETUP ---
+cookie_manager = stx.CookieManager()
+
+# 1. Try to get a saved username from the browser cookies
+if not st.session_state['username']:
+    saved_user = cookie_manager.get(cookie="pdc_user_login")
+    if saved_user:
+        st.session_state['username'] = saved_user
 
 # 1. Page Configuration
 st.set_page_config(page_title="PDC Predictor Pro", page_icon="🎯", layout="wide")
@@ -133,12 +143,14 @@ if st.session_state['username'] == "":
     auth_mode = st.sidebar.radio("Entry", ["Login", "Register"])
     u_attempt = st.sidebar.text_input("Username").strip()
     p_attempt = st.sidebar.text_input("Password", type="password")
-    if st.sidebar.button("Go"):
+        if st.sidebar.button("Go"):
         u_df = get_data("Users")
         if not u_df.empty:
             match = u_df[(u_df['Username'].astype(str) == u_attempt) & (u_df['Password'].astype(str) == str(p_attempt))]
             if not match.empty:
                 st.session_state['username'] = u_attempt
+                # SAVE THE COOKIE (Expires in 30 days)
+                cookie_manager.set("pdc_user_login", u_attempt, expires_at=datetime.now() + timedelta(days=30))
                 st.rerun()
             else: st.sidebar.error("Invalid Login")
 else:
@@ -148,9 +160,11 @@ else:
         st.session_state['audio_played'] = True
 
     st.sidebar.write(f"Logged in: **{st.session_state['username']}**")
-    if st.sidebar.button("Logout"):
+        if st.sidebar.button("Logout"):
         st.session_state['username'] = ""
-        st.session_state['audio_played'] = False # Reset audio for next login
+        st.session_state['audio_played'] = False
+        # DELETE THE COOKIE
+        cookie_manager.delete("pdc_user_login")
         st.rerun()
 
 st.sidebar.divider()
