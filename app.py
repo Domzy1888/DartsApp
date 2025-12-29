@@ -8,11 +8,15 @@ import extra_streamlit_components as stx
 # 1. Page Configuration
 st.set_page_config(page_title="PDC Predictor Pro", page_icon="🎯", layout="wide")
 
-# --- 2. SESSION STATE INIT ---
+# --- 2. SESSION STATE & FALLBACKS (FIXED: Added page fallback) ---
 if 'username' not in st.session_state: 
     st.session_state['username'] = ""
 if 'audio_played' not in st.session_state: 
     st.session_state['audio_played'] = False
+
+# This prevents the NameError you saw
+page = "Predictions" 
+page_options = ["Predictions", "Leaderboard", "Rival Watch", "Admin"]
 
 # --- 3. COOKIE MANAGER SETUP ---
 cookie_manager = stx.CookieManager(key="darts_cookie_manager")
@@ -34,9 +38,8 @@ if st.session_state['username'] == "":
 saved_mute = cookie_manager.get(cookie="pdc_mute")
 initial_mute = True if saved_mute == "True" else False
 
-# C. Handle Page Cookie
+# C. Handle Page Cookie (Memory)
 saved_page = cookie_manager.get(cookie="pdc_page")
-page_options = ["Predictions", "Leaderboard", "Rival Watch", "Admin"]
 initial_page_index = page_options.index(saved_page) if saved_page in page_options else 0
 
 # --- AUDIO SETTINGS ---
@@ -134,11 +137,11 @@ else:
 
     st.sidebar.write(f"Logged in: **{st.session_state['username']}**")
     
+    # NAVIGATION
     page = st.sidebar.radio("Navigate", page_options, index=initial_page_index)
     if page != saved_page:
         cookie_manager.set("pdc_page", page, expires_at=datetime.now() + timedelta(days=30))
 
-    # FIXED LOGOUT: Simplified to avoid Duplicate Key Error
     if st.sidebar.button("Logout"):
         st.session_state['username'] = ""
         st.session_state['audio_played'] = False
