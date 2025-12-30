@@ -270,47 +270,25 @@ elif page == "Leaderboard":
         lb = merged.groupby('Username')['Pts'].sum().reset_index().rename(columns={'Pts': 'Points'}).sort_values('Points', ascending=False)
         st.dataframe(lb, hide_index=True, use_container_width=True)
 
-elif page == "Rival Watch":
-    st.title("👁️ Rival Watch")
-    u_df = get_data("Users")
-    rival = st.selectbox("Select a Rival", u_df['Username'].tolist() if not u_df.empty else [])
-    if rival:
-        p_df = get_data("Predictions"); m_df = get_data("Matches")
-        rival_preds = p_df[p_df['Username'] == rival]
-        if rival_preds.empty: st.info(f"{rival} hasn't predicted yet.")
-        else:
-            merged = rival_preds.merge(m_df, on="Match_ID")
-            for _, r in merged.iterrows():
-                st.write(f"🎯 **{r['Player1']}** {r['Score']} **{r['Player2']}**")
-
 elif page == "Highlights":
     st.title("📺 Latest PDC Highlights")
+    st.write("Catch the latest action from the official PDC YouTube channel.")
     
-    # Dynamic fetch from official PDC Channel
-    try:
-        # Using the official PDC YouTube RSS feed for live updates
-        rss_url = "https://www.youtube.com/feeds/videos.xml?channel_id=UCxOdDX55ZjdIcEMnlHp3rUw"
-        response = requests.get(rss_url)
-        # We use BeautifulSoup to parse the XML feed
-        soup = BeautifulSoup(response.content, "xml")
-        entries = soup.find_all("entry")[:3] # Gets the 3 most recent videos
-        
-        for entry in entries:
-            title = entry.find("title").text
-            link = entry.find("link")["href"]
-            published = entry.find("published").text[:10] # Simplified date
-            
-            with st.container():
-                st.subheader(f"🎯 {title}")
-                st.video(link)
-                st.caption(f"Published: {published}")
-                st.divider()
-                
-    except Exception as e:
-        # Robust fallback to ensure the page never stays empty
-        st.warning("Currently pulling the latest featured highlights...")
-        st.video("https://www.youtube.com/watch?v=UfYYCbPtzWI") 
-        st.write("Visit the [Official PDC YouTube Channel](https://www.youtube.com/@officialpdc) for more.")
+    # Official PDC Uploads Playlist ID (Channel ID UCxOdDX55ZjdIcEMnlHp3rUw converted to UU playlist)
+    pdc_playlist_url = "https://www.youtube.com/embed/videoseries?list=UUXOdDX55ZjdIcEMnlHp3rUw"
+    
+    st.markdown(f"""
+        <iframe width="100%" height="500" 
+            src="{pdc_playlist_url}" 
+            title="PDC Latest Highlights" 
+            frameborder="0" 
+            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" 
+            allowfullscreen>
+        </iframe>
+    """, unsafe_allow_html=True)
+    
+    st.info("💡 You can click the playlist icon in the top right of the video player to browse older highlights.")
+
 
 
 elif page == "Admin":
