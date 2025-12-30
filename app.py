@@ -7,11 +7,11 @@ import extra_streamlit_components as stx
 import smtplib
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
+import requests
 try:
     from bs4 import BeautifulSoup
-    import requests
 except ImportError:
-    pass # Will be handled by requirements.txt
+    pass
 
 # 1. Page Configuration
 st.set_page_config(page_title="PDC Predictor Pro", page_icon="🎯", layout="wide")
@@ -89,43 +89,39 @@ def get_data(worksheet):
     except:
         return pd.DataFrame()
 
-# --- 5. STYLING (Strict Side-by-Side) ---
+# --- 5. STYLING ---
 st.markdown("""
     <style>
     .stApp { background: linear-gradient(rgba(0,0,0,0.6), rgba(0,0,0,0.6)), url("https://cdn.images.express.co.uk/img/dynamic/4/590x/secondary/5856693.jpg?r=1735554407217"); background-size: cover; background-attachment: fixed; }
     h1, h2, h3, p, label { color: white !important; font-weight: bold; }
     [data-testid="stSidebarContent"] { background-color: #111111 !important; }
     
+    /* Force Horizontal in Dialog */
     div[data-testid="stDialog"] [data-testid="stHorizontalBlock"] {
         display: flex !important;
         flex-direction: row !important;
         flex-wrap: nowrap !important;
         gap: 5px !important;
     }
-    
-    div[data-testid="stDialog"] [data-testid="column"] {
-        min-width: 0 !important;
-        flex: 1 1 auto !important;
-    }
+    div[data-testid="stDialog"] [data-testid="column"] { min-width: 0 !important; flex: 1 1 auto !important; }
 
-    .player-img-h2h { width: 100% !important; border-radius: 8px; border: 1px solid #ffd700; height: auto; }
-    .match-card { border: 2px solid #ffd700; border-radius: 20px; background-image: linear-gradient(rgba(0,0,0,0.5), rgba(0,0,0,0.5)), url("https://news.paddypower.com/assets/uploads/2023/12/Paddy-Power-World-Darts-Championship.jpg"); background-size: cover; padding: 15px; margin-bottom: 10px; }
+    .player-img-h2h { width: 100% !important; border-radius: 8px; border: 1px solid #ffd700; }
+    .match-card { border: 2px solid #ffd700; border-radius: 20px; background: rgba(0,0,0,0.5); padding: 15px; margin-bottom: 10px; }
     .match-wrapper { display: flex; align-items: flex-start; justify-content: space-around; width: 100%; }
     .player-box { flex: 1; display: flex; flex-direction: column; align-items: center; text-align: center; }
     .player-img { width: 100%; max-width: 100px; border-radius: 10px; }
     .vs-text { color: #ffd700 !important; font-size: 1.2rem !important; font-weight: 900 !important; margin-top: 30px; }
-    .player-name { font-size: 0.9rem !important; color: #ffd700 !important; margin-top: 5px; min-height: 2em; }
+    .player-name { font-size: 0.9rem !important; color: #ffd700 !important; margin-top: 5px; }
     
-    div.stButton > button, div.stFormSubmitButton > button { background-color: #ffd700 !important; color: #000000 !important; font-weight: 900 !important; border-radius: 10px !important; }
-
+    div.stButton > button { background-color: #ffd700 !important; color: #000 !important; font-weight: bold; width: 100%; }
+    
     div[data-testid="stDialog"] div[role="dialog"] {
-        background: rgba(0,0,0,0.95) !important;
+        background-color: #000 !important;
         border: 2px solid #ffd700 !important;
-        padding: 10px !important;
     }
 
     .stat-row-ui { display: flex; align-items: center; justify-content: space-between; margin-bottom: 4px; }
-    .stat-bar-bg { height: 10px; background: #222; border-radius: 5px; overflow: hidden; display: flex; width: 100%; border: 1px solid #444; }
+    .stat-bar-bg { height: 8px; background: #222; border-radius: 4px; overflow: hidden; display: flex; width: 100%; }
     .bar-gold { background: #ffd700; height: 100%; }
     .bar-blue { background: #007bff; height: 100%; }
     </style>
@@ -141,26 +137,34 @@ def show_h2h(p1, p2):
     c1, c2, c3 = st.columns([1, 1.8, 1])
     with c1:
         img1 = d1['Player_Image'] if d1 is not None and 'Player_Image' in d1 else ""
-        st.markdown(f"<div style='text-align:center;'><img src='{img1}' class='player-img-h2h'><p style='font-size: 9px; margin-top:2px;'>{p1}</p></div>", unsafe_allow_html=True)
+        st.markdown(f"<div style='text-align:center;'><img src='{img1}' class='player-img-h2h'><p style='font-size: 10px;'>{p1}</p></div>", unsafe_allow_html=True)
     with c3:
         img2 = d2['Player_Image'] if d2 is not None and 'Player_Image' in d2 else ""
-        st.markdown(f"<div style='text-align:center;'><img src='{img2}' class='player-img-h2h'><p style='font-size: 9px; margin-top:2px;'>{p2}</p></div>", unsafe_allow_html=True)
+        st.markdown(f"<div style='text-align:center;'><img src='{img2}' class='player-img-h2h'><p style='font-size: 10px;'>{p2}</p></div>", unsafe_allow_html=True)
     with c2:
-        # Check column names carefully to avoid "nan"
-        stats_map = {"TITLES": ["PDC_Titles", "Titles"], "AVG": ["Tournament_Avg", "Avg"], "CHK %": ["Checkout_Pct", "Checkout %"], "180s": ["180s"]}
-        for label, keys in stats_map.items():
-            v1, v2 = 0, 0
-            for k in keys:
-                if d1 is not None and k in d1: v1 = float(d1[k]); break
-            for k in keys:
-                if d2 is not None and k in d2: v2 = float(d2[k]); break
-            
+        # Robust stat mapping to prevent 'nan'
+        metrics = [("TITLES", "PDC_Titles"), ("AVG", "Tournament_Avg"), ("CHK %", "Checkout_Pct"), ("180s", "180s")]
+        for label, col in metrics:
+            v1 = float(d1[col]) if d1 is not None and col in d1 and pd.notnull(d1[col]) else 0.0
+            v2 = float(d2[col]) if d2 is not None and col in d2 and pd.notnull(d2[col]) else 0.0
             total = v1 + v2 if (v1 + v2) > 0 else 1
-            st.markdown(f"""<div style="margin-bottom:8px;"><div class="stat-row-ui"><span style="color:#ffd700; font-size:11px; font-weight:bold;">{v1}</span><span style="font-size:8px; color:#ccc;">{label}</span><span style="color:#007bff; font-size:11px; font-weight:bold;">{v2}</span></div><div class="stat-bar-bg"><div class="bar-gold" style="width:{(v1/total)*100}%;"></div><div class="bar-blue" style="width:{(v2/total)*100}%;"></div></div></div>""", unsafe_allow_html=True)
+            st.markdown(f"""
+                <div style="margin-bottom:8px;">
+                    <div class="stat-row-ui">
+                        <span style="color:#ffd700; font-size:12px;">{v1}</span>
+                        <span style="font-size:9px; color:#aaa;">{label}</span>
+                        <span style="color:#007bff; font-size:12px;">{v2}</span>
+                    </div>
+                    <div class="stat-bar-bg">
+                        <div class="bar-gold" style="width:{(v1/total)*100}%;"></div>
+                        <div class="bar-blue" style="width:{(v2/total)*100}%;"></div>
+                    </div>
+                </div>
+            """, unsafe_allow_html=True)
 
 # --- 7. SIDEBAR AUTH & NAVIGATION ---
 st.sidebar.title("🎯 PDC PREDICTOR")
-mute_audio = st.sidebar.toggle("🔈 Mute Walk-on Music", value=initial_mute)
+mute_audio = st.sidebar.toggle("🔈 Mute Music", value=initial_mute)
 if mute_audio != initial_mute:
     cookie_manager.set("pdc_mute", str(mute_audio), expires_at=datetime.now() + timedelta(days=30))
 st.sidebar.divider()
@@ -169,9 +173,6 @@ if st.session_state['username'] == "":
     auth_mode = st.sidebar.radio("Entry", ["Login", "Register"])
     u_attempt = st.sidebar.text_input("Username").strip()
     p_attempt = st.sidebar.text_input("Password", type="password")
-    if auth_mode == "Register":
-        email_val = st.sidebar.text_input("Email (Optional)").strip()
-    
     if st.sidebar.button("Go"):
         u_df = get_data("Users")
         if auth_mode == "Register":
@@ -179,19 +180,17 @@ if st.session_state['username'] == "":
                 if not u_df.empty and u_attempt in u_df['Username'].astype(str).values:
                     st.sidebar.error("Username taken.")
                 else:
-                    new_user = pd.DataFrame([{"Username": u_attempt, "Password": p_attempt, "Email": email_val if 'email_val' in locals() else ""}])
+                    new_user = pd.DataFrame([{"Username": u_attempt, "Password": p_attempt, "Email": ""}])
                     conn.update(spreadsheet=URL, worksheet="Users", data=pd.concat([u_df, new_user], ignore_index=True))
-                    st.sidebar.success("Created! Please Login."); time.sleep(1); st.rerun()
+                    st.sidebar.success("Created! Login now."); time.sleep(1); st.rerun()
         else:
             if not u_df.empty:
                 match = u_df[(u_df['Username'].astype(str) == u_attempt) & (u_df['Password'].astype(str) == str(p_attempt))]
                 if not match.empty:
                     st.session_state['username'] = u_attempt
-                    st.session_state['logging_out'] = False
                     cookie_manager.set("pdc_user_login", u_attempt, expires_at=datetime.now() + timedelta(days=30))
                     st.rerun()
-                else:
-                    st.sidebar.error("Invalid Credentials")
+                else: st.sidebar.error("Invalid Credentials")
 else:
     if not mute_audio and not st.session_state['audio_played']:
         st.audio(CHASE_THE_SUN_URL, format="audio/mp3", autoplay=True)
@@ -206,21 +205,19 @@ else:
     if st.sidebar.button("Logout"):
         st.session_state['logging_out'] = True
         st.session_state['username'] = ""
-        st.session_state['audio_played'] = False
         cookie_manager.delete("pdc_user_login")
-        time.sleep(0.5); st.rerun()
+        st.rerun()
 
 # --- 8. PAGE CONTENT ---
 if page == "Predictions":
     if st.session_state['username'] == "": st.warning("Please sign in.")
     else:
         st.title("Upcoming Matches")
-        m_df = get_data("Matches").dropna(subset=['Match_ID', 'Player1', 'Date'])
+        m_df = get_data("Matches").dropna(subset=['Match_ID', 'Player1'])
         p_df = get_data("Predictions"); r_df = get_data("Results"); now = datetime.now()
         
         m_df['Date_Parsed'] = pd.to_datetime(m_df['Date'], errors='coerce')
-        m_df = m_df.dropna(subset=['Date_Parsed'])
-        days = sorted(m_df['Date_Parsed'].dt.date.unique())
+        days = sorted(m_df['Date_Parsed'].dropna().dt.date.unique())
         
         if days:
             sel_day = st.selectbox("📅 Select Match Day", days)
@@ -229,20 +226,22 @@ if page == "Predictions":
                 mid = str(row['Match_ID']).replace('.0', '')
                 if not r_df.empty and mid in r_df['Match_ID'].astype(str).str.replace('.0', '', regex=False).values: continue
                 
-                diff = row['Date_Parsed'] - now
-                mins = diff.total_seconds() / 60
+                st.markdown(f"""
+                    <div class='match-card'>
+                        <div class='match-wrapper'>
+                            <div class='player-box'><img src="{row.get('P1_Image', '')}" class='player-img'><div class='player-name'>{row['Player1']}</div></div>
+                            <div class='vs-text'>VS</div>
+                            <div class='player-box'><img src="{row.get('P2_Image', '')}" class='player-img'><div class='player-name'>{row['Player2']}</div></div>
+                        </div>
+                    </div>
+                """, unsafe_allow_html=True)
                 
-                st.markdown(f"<div class='match-card'><div class='match-wrapper'><div class='player-box'><img src=\"{row.get('P1_Image', '')}\" class='player-img'><div class='player-name'>{row['Player1']}</div></div><div class='vs-text'>VS</div><div class='player-box'><img src=\"{row.get('P2_Image', '')}\" class='player-img'><div class='player-name'>{row['Player2']}</div></div></div></div>", unsafe_allow_html=True)
-                
-                if st.button(f"📊 Tale of the Tape: {row['Player1']} vs {row['Player2']}", key=f"h2h_{mid}"):
+                if st.button(f"📊 View Stats: {row['Player1']} vs {row['Player2']}", key=f"h2h_{mid}"):
                     show_h2h(row['Player1'], row['Player2'])
 
                 done = not p_df[(p_df['Username'] == st.session_state['username']) & (p_df['Match_ID'].astype(str).str.replace('.0', '', regex=False) == mid)].empty if not p_df.empty else False
                 
-                if done: 
-                    st.success("Prediction Locked ✅")
-                elif mins <= 0: 
-                    st.error("Closed 🔒")
+                if done: st.success("Prediction Locked ✅")
                 else:
                     with st.form(f"form_{mid}"):
                         c1, c2 = st.columns(2)
@@ -287,18 +286,20 @@ elif page == "Rival Watch":
 elif page == "Highlights":
     st.title("📺 Highlights")
     st.video("https://www.youtube.com/watch?v=fCZLvccxArQ") 
-    st.write("Latest PDC clips.")
 
 elif page == "Admin":
     st.title("⚙️ Admin Hub")
     if st.text_input("Admin Password", type="password") == "darts2025":
-        if st.button("🚀 Scrape Latest 2025 Stats"):
+        if st.button("🚀 Scrape & Update Latest 2025 Stats"):
             with st.spinner("Fetching..."):
                 try:
                     pdc_url = "https://www.pdc.tv/news/2025/12/26/202526-paddy-power-world-darts-championship-stats-update"
                     response = requests.get(pdc_url)
                     soup = BeautifulSoup(response.text, 'html5lib')
                     tables = pd.read_html(str(soup))
-                    st.success("Fetched!")
-                    st.dataframe(tables[0])
+                    if tables:
+                        conn.update(spreadsheet=URL, worksheet="Stats", data=tables[0])
+                        st.success("Stats Updated Successfully!")
+                        time.sleep(1)
+                        st.rerun() # The missing rerun
                 except Exception as e: st.error(f"Scraper Error: {str(e)}")
