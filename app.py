@@ -11,7 +11,14 @@ from email.mime.multipart import MIMEMultipart
 # 1. Page Configuration
 st.set_page_config(page_title="PDC Predictor Pro", page_icon="🎯", layout="wide")
 
-# --- 2. THE BOOTSTRAP LOGIN ---
+# --- BUG FIX: SINGLETON COOKIE MANAGER ---
+# We initialize it once and store it in session state to avoid DuplicateElementKey errors.
+if 'cookie_manager' not in st.session_state:
+    st.session_state['cookie_manager'] = stx.CookieManager(key="pdc_global_cookie_manager")
+
+cookie_manager = st.session_state['cookie_manager']
+
+# --- 2. SESSION STATE & BOOTSTRAP LOGIN ---
 if 'username' not in st.session_state: 
     st.session_state['username'] = ""
 if 'audio_played' not in st.session_state: 
@@ -19,22 +26,20 @@ if 'audio_played' not in st.session_state:
 if 'logging_out' not in st.session_state:
     st.session_state['logging_out'] = False
 
+# Auto-login check
 if st.session_state['username'] == "" and not st.session_state['logging_out']:
-    boot_manager = stx.CookieManager(key="boot_loader")
-    time.sleep(1.0) 
-    saved_user = boot_manager.get(cookie="pdc_user_login")
+    saved_user = cookie_manager.get(cookie="pdc_user_login")
     if saved_user:
         st.session_state['username'] = saved_user
         st.rerun()
 
-# --- 3. PREFERENCE & DATA SETUP ---
-pref_manager = stx.CookieManager(key="pref_loader")
-saved_mute = pref_manager.get(cookie="pdc_mute")
+# --- 3. PREFERENCES ---
+saved_mute = cookie_manager.get(cookie="pdc_mute")
 initial_mute = True if saved_mute == "True" else False
-saved_page = pref_manager.get(cookie="pdc_page")
+
+saved_page = cookie_manager.get(cookie="pdc_page")
 page_options = ["Predictions", "Leaderboard", "Rival Watch", "Highlights", "Admin"]
 initial_page_index = page_options.index(saved_page) if saved_page in page_options else 0
-page = saved_page if saved_page in page_options else "Predictions"
 
 CHASE_THE_SUN_URL = "https://github.com/Domzy1888/DartsApp/raw/refs/heads/main/ytmp3free.cc_darts-chase-the-sun-extended-15-minutes-youtubemp3free.org.mp3"
 conn = st.connection("gsheets", type=GSheetsConnection)
@@ -97,61 +102,33 @@ st.markdown("""
         border-radius: 20px; 
         background-image: linear-gradient(rgba(0,0,0,0.5), rgba(0,0,0,0.5)), url("https://news.paddypower.com/assets/uploads/2023/12/Paddy-Power-World-Darts-Championship.jpg"); 
         background-size: cover; 
-        background-position: center; /* FIXED: Centers the Paddy Power image */
+        background-position: center;
         padding: 20px; 
         margin-bottom: 10px; 
     }
     
     .match-wrapper { display: flex; align-items: flex-start; justify-content: space-around; width: 100%; gap: 5px; }
     .player-box { flex: 1; display: flex; flex-direction: column; align-items: center; text-align: center; }
-    
-    .player-img { 
-        width: 100%; 
-        max-width: 120px; 
-        border-radius: 10px; 
-        border: none !important; /* FIXED: Removes inner cluttered borders */
-    }
-    
+    .player-img { width: 100%; max-width: 120px; border-radius: 10px; border: none !important; }
     .vs-text { color: #ffd700 !important; font-size: 1.5rem !important; font-weight: 900 !important; margin-top: 40px; }
     .player-name { font-size: 1.1rem !important; font-weight: 900 !important; color: #ffd700 !important; margin-top: 10px; min-height: 3em; }
     .timer-text { font-weight: bold; font-size: 1.1rem; text-align: center; margin-bottom: 15px; }
     .timer-urgent { animation: pulse-red 1s infinite; font-weight: 900; }
     
-    div.stButton > button, 
-    div.stFormSubmitButton > button, 
-    .custom-link-button {
-        background-color: #ffd700 !important; 
-        color: #000000 !important; 
-        font-weight: 900 !important; 
-        border-radius: 10px !important; 
-        width: 100% !important;
-        border: none !important;
-        text-decoration: none !important;
-        display: inline-block;
-        padding: 10px 20px;
-        text-align: center;
-        cursor: pointer;
+    div.stButton > button, div.stFormSubmitButton > button, .custom-link-button {
+        background-color: #ffd700 !important; color: #000000 !important; font-weight: 900 !important; border-radius: 10px !important; width: 100% !important; border: none !important; text-decoration: none !important; display: inline-block; padding: 10px 20px; text-align: center;
     }
-    
-    div.stButton > button p, div.stFormSubmitButton > button p {
-        color: #000000 !important;
-        margin: 0;
-    }
-
-    div.stButton > button:hover, 
-    div.stFormSubmitButton > button:hover,
-    .custom-link-button:hover {
-        color: #000000 !important;
-        border: 2px solid white !important;
-    }
+    div.stButton > button p, div.stFormSubmitButton > button p { color: #000000 !important; margin: 0; }
     </style>
 """, unsafe_allow_html=True)
 
 # --- 6. SIDEBAR & AUTH ---
 st.sidebar.title("🎯 PDC PREDICTOR")
 mute_audio = st.sidebar.toggle("🔈 Mute Walk-on Music", value=initial_mute)
-if mute_audio != initial_mute and not st.session_state['logging_out']:
-    stx.CookieManager(key="set_mute").set("pdc_mute", str(mute_audio), expires_at=datetime.now() + timedelta(days=30))
+
+# Updated Preference Saving (No extra CookieManager keys)
+if mute_audio != initial_mute:
+    cookie_manager.set("pdc_mute", str(mute_audio), expires_at=datetime.now() + timedelta(days=30))
 
 st.sidebar.divider()
 
@@ -159,17 +136,15 @@ if st.session_state['username'] == "":
     auth_mode = st.sidebar.radio("Entry", ["Login", "Register"])
     u_attempt = st.sidebar.text_input("Username").strip()
     p_attempt = st.sidebar.text_input("Password", type="password")
-    email_val = ""
     if auth_mode == "Register":
         email_val = st.sidebar.text_input("Email (Optional)").strip()
-        st.sidebar.caption("For automated matchday reminders.")
     if st.sidebar.button("Go"):
         u_df = get_data("Users")
         if auth_mode == "Register":
             if u_attempt and p_attempt:
                 if not u_df.empty and u_attempt in u_df['Username'].astype(str).values: st.sidebar.error("Taken.")
                 else:
-                    new_user = pd.DataFrame([{"Username": u_attempt, "Password": p_attempt, "Email": email_val}])
+                    new_user = pd.DataFrame([{"Username": u_attempt, "Password": p_attempt, "Email": email_val if 'email_val' in locals() else ""}])
                     conn.update(spreadsheet=URL, worksheet="Users", data=pd.concat([u_df, new_user], ignore_index=True))
                     st.sidebar.success("Created! Login now."); time.sleep(1); st.rerun()
         else:
@@ -178,21 +153,27 @@ if st.session_state['username'] == "":
                 if not match.empty:
                     st.session_state['username'] = u_attempt
                     st.session_state['logging_out'] = False
-                    stx.CookieManager(key="write_login").set("pdc_user_login", u_attempt, expires_at=datetime.now() + timedelta(days=30))
+                    cookie_manager.set("pdc_user_login", u_attempt, expires_at=datetime.now() + timedelta(days=30))
                     st.rerun()
                 else: st.sidebar.error("Invalid Login")
 else:
+    # Walk-on Music Logic
     if not mute_audio and not st.session_state['audio_played']:
         st.audio(CHASE_THE_SUN_URL, format="audio/mp3", autoplay=True)
         st.session_state['audio_played'] = True
+    
     st.sidebar.write(f"Logged in: **{st.session_state['username']}**")
-    page = st.sidebar.radio("Navigate", page_options, index=initial_page_index)
-    if page != saved_page and not st.session_state['logging_out']:
-        stx.CookieManager(key="set_page").set("pdc_page", page, expires_at=datetime.now() + timedelta(days=30))
+    page_sel = st.sidebar.radio("Navigate", page_options, index=initial_page_index)
+    
+    if page_sel != saved_page:
+        cookie_manager.set("pdc_page", page_sel, expires_at=datetime.now() + timedelta(days=30))
+        page = page_sel # Sync local page variable immediately
+
     if st.sidebar.button("Logout"):
-        st.session_state['logging_out'] = True; st.session_state['username'] = ""; st.session_state['audio_played'] = False
-        try: stx.CookieManager(key="del_login").delete("pdc_user_login")
-        except: pass
+        st.session_state['logging_out'] = True
+        st.session_state['username'] = ""
+        st.session_state['audio_played'] = False
+        cookie_manager.delete("pdc_user_login")
         time.sleep(0.5); st.rerun()
 
 # --- 7. SCORING ENGINE ---
@@ -266,26 +247,11 @@ elif page == "Rival Watch":
 
 elif page == "Highlights":
     st.title("📺 PDC Highlights")
-    st.write("Catch up on the latest action from the official PDC YouTube Channel.")
     pdc_playlist_url = "https://www.youtube.com/embed?listType=user_uploads&list=OfficialPDC"
     st.markdown(f"""
-        <iframe width="100%" height="600" 
-        src="{pdc_playlist_url}" 
-        title="PDC YouTube Highlights" 
-        frameborder="0" 
-        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" 
-        allowfullscreen style="border-radius:15px; border: 2px solid #ffd700;">
-        </iframe>
+        <iframe width="100%" height="600" src="{pdc_playlist_url}" title="PDC YouTube Highlights" frameborder="0" allowfullscreen style="border-radius:15px; border: 2px solid #ffd700;"></iframe>
     """, unsafe_allow_html=True)
-    st.divider()
-    st.markdown("""
-        <div style="text-align: center;">
-            <a href="https://www.youtube.com/@OfficialPDC/videos" target="_blank" class="custom-link-button">
-                📂 View All PDC Videos on YouTube
-            </a>
-        </div>
-    """, unsafe_allow_html=True)
-    st.info("💡 Tip: Tap the video while playing to see the scrollable list of recent matches at the bottom.")
+    st.markdown("""<div style='text-align: center; margin-top:20px;'><a href='https://www.youtube.com/@OfficialPDC/videos' target='_blank' class='custom-link-button'>📂 View All PDC Videos on YouTube</a></div>""", unsafe_allow_html=True)
 
 elif page == "Admin":
     st.title("⚙️ Admin Hub")
@@ -293,10 +259,8 @@ elif page == "Admin":
         m_df = get_data("Matches").dropna(subset=['Match_ID', 'Player1'])
         target = st.selectbox("Select Match", [f"{str(r['Match_ID']).replace('.0', '')}: {r['Player1']} vs {r['Player2']}" for _, r in m_df.iterrows()])
         c1, c2 = st.columns(2)
-        with c1: 
-            r1 = st.selectbox("P1", range(11))
-        with c2: 
-            r2 = st.selectbox("P2", range(11))
+        with c1: r1 = st.selectbox("P1", range(11))
+        with c2: r2 = st.selectbox("P2", range(11))
         if st.button("Submit Result"):
             old = get_data("Results")
             new = pd.concat([old, pd.DataFrame([{"Match_ID": target.split(":")[0], "Score": f"{r1}-{r2}"}])])
