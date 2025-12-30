@@ -3,3 +3,6 @@ st-paywall>=1.0.0
 st-gsheets-connection
 pandas
 extra-streamlit-components
+html5lib
+lxml
+
