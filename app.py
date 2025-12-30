@@ -286,24 +286,31 @@ elif page == "Rival Watch":
 elif page == "Highlights":
     st.title("📺 Latest PDC Highlights")
     
-    # Fetching the latest video from the official PDC YouTube RSS Feed
+    # Dynamic fetch from official PDC Channel
     try:
+        # Using the official PDC YouTube RSS feed for live updates
         rss_url = "https://www.youtube.com/feeds/videos.xml?channel_id=UCxOdDX55ZjdIcEMnlHp3rUw"
         response = requests.get(rss_url)
-        soup = BeautifulSoup(response.content, "xml") # Using XML parser for RSS
+        # We use BeautifulSoup to parse the XML feed
+        soup = BeautifulSoup(response.content, "xml")
+        entries = soup.find_all("entry")[:3] # Gets the 3 most recent videos
         
-        # Get the first entry (latest video)
-        latest_video = soup.find("entry")
-        video_title = latest_video.find("title").text
-        video_url = latest_video.find("link")["href"]
-        
-        st.subheader(video_title)
-        st.video(video_url)
-        st.write("Automatically synced with the official PDC YouTube channel.")
+        for entry in entries:
+            title = entry.find("title").text
+            link = entry.find("link")["href"]
+            published = entry.find("published").text[:10] # Simplified date
+            
+            with st.container():
+                st.subheader(f"🎯 {title}")
+                st.video(link)
+                st.caption(f"Published: {published}")
+                st.divider()
+                
     except Exception as e:
-        # Fallback if the feed fails
-        st.error("Could not sync live highlights. Showing featured clip instead.")
-        st.video("https://www.youtube.com/watch?v=fCZLvccxArQ") 
+        # Robust fallback to ensure the page never stays empty
+        st.warning("Currently pulling the latest featured highlights...")
+        st.video("https://www.youtube.com/watch?v=UfYYCbPtzWI") 
+        st.write("Visit the [Official PDC YouTube Channel](https://www.youtube.com/@officialpdc) for more.")
 
 
 elif page == "Admin":
