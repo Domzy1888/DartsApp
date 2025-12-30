@@ -91,16 +91,32 @@ st.markdown("""
     .stApp { background: linear-gradient(rgba(0,0,0,0.6), rgba(0,0,0,0.6)), url("https://cdn.images.express.co.uk/img/dynamic/4/590x/secondary/5856693.jpg?r=1735554407217"); background-size: cover; background-attachment: fixed; }
     h1, h2, h3, p, label { color: white !important; font-weight: bold; }
     [data-testid="stSidebarContent"] { background-color: #111111 !important; }
-    .match-card { border: 2px solid #ffd700; border-radius: 20px; background-image: linear-gradient(rgba(0,0,0,0.5), rgba(0,0,0,0.5)), url("https://news.paddypower.com/assets/uploads/2023/12/Paddy-Power-World-Darts-Championship.jpg"); background-size: cover; padding: 20px; margin-bottom: 10px; }
+    
+    .match-card { 
+        border: 2px solid #ffd700; 
+        border-radius: 20px; 
+        background-image: linear-gradient(rgba(0,0,0,0.5), rgba(0,0,0,0.5)), url("https://news.paddypower.com/assets/uploads/2023/12/Paddy-Power-World-Darts-Championship.jpg"); 
+        background-size: cover; 
+        background-position: center; /* FIXED: Centers the Paddy Power image */
+        padding: 20px; 
+        margin-bottom: 10px; 
+    }
+    
     .match-wrapper { display: flex; align-items: flex-start; justify-content: space-around; width: 100%; gap: 5px; }
     .player-box { flex: 1; display: flex; flex-direction: column; align-items: center; text-align: center; }
-    .player-img { width: 100%; max-width: 120px; border-radius: 10px; border: 2px solid #ffd700; }
+    
+    .player-img { 
+        width: 100%; 
+        max-width: 120px; 
+        border-radius: 10px; 
+        border: none !important; /* FIXED: Removes inner cluttered borders */
+    }
+    
     .vs-text { color: #ffd700 !important; font-size: 1.5rem !important; font-weight: 900 !important; margin-top: 40px; }
     .player-name { font-size: 1.1rem !important; font-weight: 900 !important; color: #ffd700 !important; margin-top: 10px; min-height: 3em; }
     .timer-text { font-weight: bold; font-size: 1.1rem; text-align: center; margin-bottom: 15px; }
     .timer-urgent { animation: pulse-red 1s infinite; font-weight: 900; }
     
-    /* THE ULTIMATE GLOBAL BUTTON FIX */
     div.stButton > button, 
     div.stFormSubmitButton > button, 
     .custom-link-button {
@@ -262,7 +278,6 @@ elif page == "Highlights":
         </iframe>
     """, unsafe_allow_html=True)
     st.divider()
-    # USING CUSTOM HTML BUTTON FOR STABILITY
     st.markdown("""
         <div style="text-align: center;">
             <a href="https://www.youtube.com/@OfficialPDC/videos" target="_blank" class="custom-link-button">
