@@ -44,6 +44,7 @@ def send_reminders():
         return f"Success: {remind_count} reminders sent."
     except Exception as e: return f"Gmail Error: {str(e)}"
 
+# GitHub Workflow Trigger
 if st.query_params.get("trigger_reminders") == "true":
     result = send_reminders()
     st.write(result)
@@ -58,6 +59,7 @@ if 'username' not in st.session_state: st.session_state['username'] = ""
 if 'audio_played' not in st.session_state: st.session_state['audio_played'] = False
 if 'logging_out' not in st.session_state: st.session_state['logging_out'] = False
 
+# Auto-login
 if st.session_state['username'] == "" and not st.session_state['logging_out']:
     saved_user = cookie_manager.get(cookie="pdc_user_login")
     if saved_user:
@@ -92,7 +94,6 @@ st.markdown("""
     h1, h2, h3, p, label { color: white !important; font-weight: bold; }
     [data-testid="stSidebarContent"] { background-color: #111111 !important; }
     
-    /* Match Card UI */
     .match-card { border: 2px solid #ffd700; border-radius: 20px; background-image: linear-gradient(rgba(0,0,0,0.5), rgba(0,0,0,0.5)), url("https://news.paddypower.com/assets/uploads/2023/12/Paddy-Power-World-Darts-Championship.jpg"); background-size: cover; background-position: center; padding: 20px; margin-bottom: 10px; }
     .match-wrapper { display: flex; align-items: flex-start; justify-content: space-around; width: 100%; gap: 5px; }
     .player-box { flex: 1; display: flex; flex-direction: column; align-items: center; text-align: center; }
@@ -100,28 +101,29 @@ st.markdown("""
     .vs-text { color: #ffd700 !important; font-size: 1.5rem !important; font-weight: 900 !important; margin-top: 40px; }
     .player-name { font-size: 1.1rem !important; font-weight: 900 !important; color: #ffd700 !important; margin-top: 10px; min-height: 3em; }
     
-    /* Buttons */
     div.stButton > button, div.stFormSubmitButton > button { background-color: #ffd700 !important; color: #000000 !important; font-weight: 900 !important; border-radius: 10px !important; width: 100% !important; border: none !important; }
     div.stButton > button p, div.stFormSubmitButton > button p { color: #000000 !important; margin: 0; }
     
-    /* DIALOG MODAL FIXES */
-    /* Target the dialog container for the background image */
+    /* DIALOG MODAL CSS */
     div[data-testid="stDialog"] div[role="dialog"] {
-        background-image: linear-gradient(rgba(0,0,0,0.85), rgba(0,0,0,0.85)), url("https://news.paddypower.com/assets/uploads/2023/12/Paddy-Power-World-Darts-Championship.jpg") !important;
+        background-image: linear-gradient(rgba(0,0,0,0.9), rgba(0,0,0,0.9)), url("https://news.paddypower.com/assets/uploads/2023/12/Paddy-Power-World-Darts-Championship.jpg") !important;
         background-size: cover !important;
         background-position: center !important;
         border: 2px solid #ffd700 !important;
+        min-width: 80% !important;
     }
-    /* Force horizontal layout for columns in the dialog even on mobile */
+    /* Force Row Layout even on mobile for Dialog */
+    div[data-testid="stDialog"] [data-testid="stHorizontalBlock"] {
+        display: flex !important;
+        flex-direction: row !important;
+        flex-wrap: nowrap !important;
+        align-items: center !important;
+    }
     div[data-testid="stDialog"] [data-testid="column"] {
         min-width: 0 !important;
         flex: 1 1 0% !important;
     }
-    [data-testid="stDialog"] div[data-testid="stHorizontalBlock"] {
-        flex-direction: row !important;
-        display: flex !important;
-    }
-    
+
     .stat-row-ui { display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; }
     .stat-bar-bg { height: 12px; background: #222; border-radius: 6px; overflow: hidden; display: flex; width: 100%; border: 1px solid #444; }
     .bar-gold { background: #ffd700; height: 100%; }
@@ -150,9 +152,9 @@ def show_h2h(p1, p2):
             v2 = float(d2[key]) if d2 is not None else 0
             total = v1 + v2 if (v1 + v2) > 0 else 1
             w1, w2 = (v1 / total) * 100, (v2 / total) * 100
-            st.markdown(f"""<div style="margin-bottom:12px;"><div class="stat-row-ui"><span style="color:#ffd700;">{v1}</span><span style="color:#aaa; font-size:9px;">{label}</span><span style="color:#007bff;">{v2}</span></div><div class="stat-bar-bg"><div class="bar-gold" style="width:{w1}%;"></div><div class="bar-blue" style="width:{w2}%;"></div></div></div>""", unsafe_allow_html=True)
+            st.markdown(f"""<div style="margin-bottom:12px;"><div class="stat-row-ui"><span style="color:#ffd700; font-weight:bold;">{v1}</span><span style="color:#aaa; font-size:9px;">{label}</span><span style="color:#007bff; font-weight:bold;">{v2}</span></div><div class="stat-bar-bg"><div class="bar-gold" style="width:{w1}%;"></div><div class="bar-blue" style="width:{w2}%;"></div></div></div>""", unsafe_allow_html=True)
 
-# --- 7. SIDEBAR & AUTH (Unchanged) ---
+# --- 7. SIDEBAR & AUTH ---
 st.sidebar.title("🎯 PDC PREDICTOR")
 mute_audio = st.sidebar.toggle("🔈 Mute Walk-on Music", value=initial_mute)
 if mute_audio != initial_mute:
@@ -216,7 +218,11 @@ if page == "Predictions":
                 # Render Match Card
                 st.markdown(f"<div class='match-card'><div class='match-wrapper'><div class='player-box'><img src=\"{row.get('P1_Image', '')}\" class='player-img'><div class='player-name'>{row['Player1']}</div></div><div class='vs-text'>VS</div><div class='player-box'><img src=\"{row.get('P2_Image', '')}\" class='player-img'><div class='player-name'>{row['Player2']}</div></div></div></div>", unsafe_allow_html=True)
                 
-                # FIXED: Form and Submit Button correctly nested
+                # Stats Button
+                if st.button(f"📊 Stats: {row['Player1']} vs {row['Player2']}", key=f"btn_{mid}"):
+                    show_h2h(row['Player1'], row['Player2'])
+
+                # Prediction Form
                 with st.form(f"form_{mid}", clear_on_submit=False):
                     done = not p_df[(p_df['Username'] == st.session_state['username']) & (p_df['Match_ID'].astype(str).str.replace('.0', '', regex=False) == mid)].empty if not p_df.empty else False
                     if done: st.success("Prediction Locked ✅")
@@ -229,26 +235,61 @@ if page == "Predictions":
                             new_p = pd.DataFrame([{"Username": st.session_state['username'], "Match_ID": mid, "Score": f"{s1}-{s2}"}])
                             conn.update(spreadsheet=URL, worksheet="Predictions", data=pd.concat([p_df, new_p], ignore_index=True))
                             st.cache_data.clear(); st.success("Saved!"); time.sleep(1); st.rerun()
-                
-                # View Stats Button (placed below form to avoid nesting errors)
-                if st.button(f"📊 View Stats: {row['Player1']} vs {row['Player2']}", key=f"btn_{mid}"):
-                    show_h2h(row['Player1'], row['Player2'])
 
 elif page == "Leaderboard":
     st.title("🏆 Leaderboard")
-    # ... (Leaderboard logic remains same)
+    p_df = get_data("Predictions"); r_df = get_data("Results")
+    if p_df.empty or r_df.empty: st.write("No scores yet.")
+    else:
+        p_df['MID'] = p_df['Match_ID'].astype(str).str.replace('.0', '', regex=False)
+        r_df['MID'] = r_df['Match_ID'].astype(str).str.replace('.0', '', regex=False)
+        merged = p_df.merge(r_df, on="MID", suffixes=('_u', '_r'))
+        def calc(r):
+            try:
+                u1, u2 = map(int, str(r['Score_u']).split('-')); r1, r2 = map(int, str(r['Score_r']).split('-'))
+                if u1 == r1 and u2 == r2: return 3
+                return 1 if (u1 > u2 and r1 > r2) or (u1 < u2 and r1 < r2) else 0
+            except: return 0
+        merged['Pts'] = merged.apply(calc, axis=1)
+        lb = merged.groupby('Username')['Pts'].sum().reset_index().rename(columns={'Pts': 'Current Points'}).sort_values('Current Points', ascending=False)
+        st.dataframe(lb, hide_index=True, width="stretch")
+
+elif page == "Rival Watch":
+    st.title("👀 Rival Watch")
+    m_df = get_data("Matches").dropna(subset=['Match_ID', 'Player1'])
+    p_df = get_data("Predictions"); opts = [f"{str(r['Match_ID']).replace('.0', '')}: {r['Player1']} vs {r['Player2']}" for _, r in m_df.iterrows()]
+    if opts:
+        sel = st.selectbox("Pick a Match:", opts); target = sel.split(":")[0]
+        if not p_df.empty:
+            p_df['MID'] = p_df['Match_ID'].astype(str).str.replace('.0', '', regex=False)
+            rivals = p_df[p_df['MID'] == target].drop_duplicates('Username', keep='last')
+            st.dataframe(rivals[['Username', 'Score']], hide_index=True, width="stretch")
+
+elif page == "Highlights":
+    st.title("📺 PDC Highlights")
+    st.markdown(f"""<iframe width="100%" height="600" src="https://www.youtube.com/embed?listType=user_uploads&list=OfficialPDC" frameborder="0" allowfullscreen style="border-radius:15px; border: 2px solid #ffd700;"></iframe>""", unsafe_allow_html=True)
 
 elif page == "Admin":
     st.title("⚙️ Admin Hub")
     if st.text_input("Admin Password", type="password") == "darts2025":
-        # 1. Scraper Tool FIXED
+        # Scraper Fixed for html5lib
         if st.button("🚀 Scrape Latest 2025 Stats"):
             with st.spinner("Fetching PDC data..."):
                 try:
                     pdc_url = "https://www.pdc.tv/news/2025/12/26/202526-paddy-power-world-darts-championship-stats-update"
-                    # Fixed with flavor='html5lib' to avoid dependency error
                     tables = pd.read_html(pdc_url, flavor='html5lib')
                     st.success("Fetched!")
                     st.dataframe(tables[0].fillna("-"))
-                except Exception as e:
-                    st.error(f"Error: {e}. Ensure 'html5lib' is in your requirements.txt")
+                except Exception as e: st.error(f"Error: {e}. Ensure 'html5lib' is in your requirements.txt")
+        
+        st.divider()
+        m_df = get_data("Matches").dropna(subset=['Match_ID', 'Player1'])
+        target = st.selectbox("Match to Settle", [f"{str(r['Match_ID']).replace('.0', '')}: {r['Player1']} vs {r['Player2']}" for _, r in m_df.iterrows()])
+        c1, c2 = st.columns(2)
+        with c1: r1 = st.selectbox("P1 Score", range(11))
+        with c2: r2 = st.selectbox("P2 Score", range(11))
+        if st.button("Publish Result"):
+            old = get_data("Results")
+            new_res = pd.concat([old, pd.DataFrame([{"Match_ID": target.split(":")[0], "Score": f"{r1}-{r2}"}])])
+            conn.update(spreadsheet=URL, worksheet="Results", data=new_res)
+            st.cache_data.clear(); st.success("Published!"); st.rerun()
