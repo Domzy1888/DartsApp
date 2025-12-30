@@ -284,8 +284,27 @@ elif page == "Rival Watch":
                 st.write(f"🎯 **{r['Player1']}** {r['Score']} **{r['Player2']}**")
 
 elif page == "Highlights":
-    st.title("📺 Highlights")
-    st.video("https://www.youtube.com/watch?v=fCZLvccxArQ") 
+    st.title("📺 Latest PDC Highlights")
+    
+    # Fetching the latest video from the official PDC YouTube RSS Feed
+    try:
+        rss_url = "https://www.youtube.com/feeds/videos.xml?channel_id=UCxOdDX55ZjdIcEMnlHp3rUw"
+        response = requests.get(rss_url)
+        soup = BeautifulSoup(response.content, "xml") # Using XML parser for RSS
+        
+        # Get the first entry (latest video)
+        latest_video = soup.find("entry")
+        video_title = latest_video.find("title").text
+        video_url = latest_video.find("link")["href"]
+        
+        st.subheader(video_title)
+        st.video(video_url)
+        st.write("Automatically synced with the official PDC YouTube channel.")
+    except Exception as e:
+        # Fallback if the feed fails
+        st.error("Could not sync live highlights. Showing featured clip instead.")
+        st.video("https://www.youtube.com/watch?v=fCZLvccxArQ") 
+
 
 elif page == "Admin":
     st.title("⚙️ Admin Hub")
