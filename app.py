@@ -12,35 +12,25 @@ from email.mime.multipart import MIMEMultipart
 st.set_page_config(page_title="PDC Predictor Pro", page_icon="🎯", layout="wide")
 
 # --- 2. GMAIL MAILING ENGINE ---
-# Moved up so it can be called immediately by the GitHub trigger
 def send_reminders():
     try:
-        # Re-initialize connection inside the function for the standalone trigger
         conn_internal = st.connection("gsheets", type=GSheetsConnection)
         spreadsheet_url = st.secrets["connections"]["gsheets"]["spreadsheet"]
-        
         u_df = conn_internal.read(spreadsheet=spreadsheet_url, worksheet="Users", ttl=0)
         p_df = conn_internal.read(spreadsheet=spreadsheet_url, worksheet="Predictions", ttl=0)
         m_df = conn_internal.read(spreadsheet=spreadsheet_url, worksheet="Matches", ttl=0)
-        
         today = datetime.now().date()
         m_df['Date_Parsed'] = pd.to_datetime(m_df['Date']).dt.date
         todays_mids = m_df[m_df['Date_Parsed'] == today]['Match_ID'].astype(str).str.replace('.0', '', regex=False).tolist()
-        
         if not todays_mids: return "No matches today."
-        
         users_with_email = u_df[u_df['Email'].astype(str).str.contains("@", na=False)]
         remind_count = 0
-        
         server = smtplib.SMTP("smtp.gmail.com", 587)
         server.starttls()
         server.login(st.secrets["gmail"]["user"], st.secrets["gmail"]["password"])
-        
         for _, user in users_with_email.iterrows():
             user_preds = p_df[p_df['Username'] == user['Username']]
             user_pred_mids = user_preds['Match_ID'].astype(str).str.replace('.0', '', regex=False).tolist()
-            
-            # If user hasn't predicted for ALL of today's matches, remind them
             if not all(mid in user_pred_mids for mid in todays_mids):
                 msg = MIMEMultipart()
                 msg['From'] = f"PDC Predictor <{st.secrets['gmail']['user']}>"
@@ -54,31 +44,27 @@ def send_reminders():
         return f"Success: {remind_count} reminders sent."
     except Exception as e: return f"Gmail Error: {str(e)}"
 
-# --- CRITICAL FIX FOR GITHUB ACTIONS ---
-# This block must run BEFORE any CookieManager or UI elements are initialized
 if st.query_params.get("trigger_reminders") == "true":
     result = send_reminders()
     st.write(result)
-    st.stop() # Stop execution here so GitHub doesn't trigger UI errors
+    st.stop()
 
 # --- 3. COOKIE & SESSION INITIALIZATION ---
 if 'cookie_manager' not in st.session_state:
     st.session_state['cookie_manager'] = stx.CookieManager(key="pdc_global_cookie_manager")
 
 cookie_manager = st.session_state['cookie_manager']
-
 if 'username' not in st.session_state: st.session_state['username'] = ""
 if 'audio_played' not in st.session_state: st.session_state['audio_played'] = False
 if 'logging_out' not in st.session_state: st.session_state['logging_out'] = False
 
-# Auto-login check
 if st.session_state['username'] == "" and not st.session_state['logging_out']:
     saved_user = cookie_manager.get(cookie="pdc_user_login")
     if saved_user:
         st.session_state['username'] = saved_user
         st.rerun()
 
-# --- 4. PREFERENCES ---
+# --- 4. PREFERENCES & DATA ---
 saved_mute = cookie_manager.get(cookie="pdc_mute")
 initial_mute = True if saved_mute == "True" else False
 saved_page = cookie_manager.get(cookie="pdc_page")
@@ -115,10 +101,66 @@ st.markdown("""
     .timer-urgent { animation: pulse-red 1s infinite; font-weight: 900; }
     div.stButton > button, div.stFormSubmitButton > button, .custom-link-button { background-color: #ffd700 !important; color: #000000 !important; font-weight: 900 !important; border-radius: 10px !important; width: 100% !important; border: none !important; text-decoration: none !important; display: inline-block; padding: 10px 20px; text-align: center; cursor: pointer; }
     div.stButton > button p, div.stFormSubmitButton > button p { color: #000000 !important; margin: 0; }
+    
+    /* H2H Pop-up Styles */
+    .stat-row { display: flex; align-items: center; justify-content: space-between; margin: 10px 0; font-family: sans-serif; }
+    .stat-label { color: #ffffff; font-size: 0.8rem; text-transform: uppercase; letter-spacing: 1px; flex: 1; text-align: center; }
+    .stat-bar-container { flex: 2; height: 12px; background: #333; margin: 0 10px; border-radius: 6px; overflow: hidden; display: flex; }
+    .bar-p1 { background: #ffd700; height: 100%; }
+    .bar-p2 { background: #007bff; height: 100%; }
     </style>
 """, unsafe_allow_html=True)
 
-# --- 6. SIDEBAR & AUTH ---
+# --- 6. H2H POP-UP ENGINE ---
+@st.dialog("Head-to-Head Comparison")
+def show_h2h(p1, p2):
+    s_df = get_data("Stats")
+    if s_df.empty:
+        st.error("Stats data not found. Please create the 'Stats' sheet.")
+        return
+    
+    # Filter for the two players
+    d1 = s_df[s_df['Player'] == p1].iloc[0] if p1 in s_df['Player'].values else None
+    d2 = s_df[s_df['Player'] == p2].iloc[0] if p2 in s_df['Player'].values else None
+
+    if d1 is None or d2 is None:
+        st.warning("Stats missing for one or both players.")
+        return
+
+    # Header with Images
+    c1, c2, c3 = st.columns([2,1,2])
+    with c1: st.image(d1.get('Player_Image', ''), width=100); st.write(f"**{p1}**")
+    with c2: st.markdown("<h2 style='text-align:center;'>VS</h2>", unsafe_allow_html=True)
+    with c3: st.image(d2.get('Player_Image', ''), width=100); st.write(f"**{p2}**")
+
+    # Stat Rows
+    stats_to_show = [
+        ("World Titles", "World_Titles"),
+        ("PDC Titles", "PDC_Titles"),
+        ("Avg", "Tournament_Avg"),
+        ("Checkout %", "Checkout_Pct"),
+        ("180s", "180s")
+    ]
+
+    for label, col in stats_to_show:
+        v1 = float(d1[col]); v2 = float(d2[col])
+        total = v1 + v2 if (v1 + v2) > 0 else 1
+        p1_width = (v1 / total) * 100
+        p2_width = (v2 / total) * 100
+        
+        st.markdown(f"""
+            <div class="stat-row">
+                <div style="width:30px; color:#ffd700;">{v1}</div>
+                <div class="stat-label">{label}</div>
+                <div style="width:30px; color:#007bff; text-align:right;">{v2}</div>
+            </div>
+            <div class="stat-bar-container">
+                <div class="bar-p1" style="width:{p1_width}%;"></div>
+                <div class="bar-p2" style="width:{p2_width}%;"></div>
+            </div>
+        """, unsafe_allow_html=True)
+
+# --- 7. SIDEBAR & AUTH ---
 st.sidebar.title("🎯 PDC PREDICTOR")
 mute_audio = st.sidebar.toggle("🔈 Mute Walk-on Music", value=initial_mute)
 if mute_audio != initial_mute:
@@ -165,22 +207,6 @@ else:
         cookie_manager.delete("pdc_user_login")
         time.sleep(0.5); st.rerun()
 
-# --- 7. SCORING ENGINE ---
-def get_leaderboard_data():
-    p_df = get_data("Predictions"); r_df = get_data("Results")
-    if p_df.empty or r_df.empty: return pd.DataFrame(columns=['Username', 'Current Points'])
-    p_df['MID'] = p_df['Match_ID'].astype(str).str.replace('.0', '', regex=False)
-    r_df['MID'] = r_df['Match_ID'].astype(str).str.replace('.0', '', regex=False)
-    merged = p_df.merge(r_df, on="MID", suffixes=('_u', '_r'))
-    def calc(r):
-        try:
-            u1, u2 = map(int, str(r['Score_u']).split('-')); r1, r2 = map(int, str(r['Score_r']).split('-'))
-            if u1 == r1 and u2 == r2: return 3
-            return 1 if (u1 > u2 and r1 > r2) or (u1 < u2 and r1 < r2) else 0
-        except: return 0
-    merged['Pts'] = merged.apply(calc, axis=1)
-    return merged.groupby('Username')['Pts'].sum().reset_index().rename(columns={'Pts': 'Current Points'}).sort_values('Current Points', ascending=False)
-
 # --- 8. PAGES ---
 if page == "Predictions":
     if st.session_state['username'] == "": st.warning("Please sign in.")
@@ -204,6 +230,11 @@ if page == "Predictions":
                     elif 0 < mins <= 60: timer = f"<div class='timer-text timer-urgent'>⚠️ STARTING SOON</div>"
                     else: timer = "<div class='timer-text' style='color:#ff4b4b;'>Locked / Live</div>"
                     st.markdown(f"<div class='match-card'>{timer}<div class='match-wrapper'><div class='player-box'><img src=\"{row.get('P1_Image', '')}\" class='player-img'><div class='player-name'>{row['Player1']}</div></div><div class='vs-text'>VS</div><div class='player-box'><img src=\"{row.get('P2_Image', '')}\" class='player-img'><div class='player-name'>{row['Player2']}</div></div></div></div>", unsafe_allow_html=True)
+                    
+                    # STATS BUTTON (Added inside the card loop)
+                    if st.form_submit_button(f"📊 Stats: {row['Player1']} v {row['Player2']}", use_container_width=True):
+                        show_h2h(row['Player1'], row['Player2'])
+                    
                     done = not p_df[(p_df['Username'] == st.session_state['username']) & (p_df['Match_ID'].astype(str).str.replace('.0', '', regex=False) == mid)].empty if not p_df.empty else False
                     if done: st.success("Prediction Locked ✅")
                     elif mins <= 0: st.error("Closed 🔒")
@@ -220,19 +251,32 @@ if page == "Predictions":
 
 elif page == "Leaderboard":
     st.title("🏆 Leaderboard")
-    st.dataframe(get_leaderboard_data(), hide_index=True, width="stretch")
+    p_df = get_data("Predictions"); r_df = get_data("Results")
+    if p_df.empty or r_df.empty: st.write("No scores yet.")
+    else:
+        p_df['MID'] = p_df['Match_ID'].astype(str).str.replace('.0', '', regex=False)
+        r_df['MID'] = r_df['Match_ID'].astype(str).str.replace('.0', '', regex=False)
+        merged = p_df.merge(r_df, on="MID", suffixes=('_u', '_r'))
+        def calc(r):
+            try:
+                u1, u2 = map(int, str(r['Score_u']).split('-')); r1, r2 = map(int, str(r['Score_r']).split('-'))
+                if u1 == r1 and u2 == r2: return 3
+                return 1 if (u1 > u2 and r1 > r2) or (u1 < u2 and r1 < r2) else 0
+            except: return 0
+        merged['Pts'] = merged.apply(calc, axis=1)
+        lb = merged.groupby('Username')['Pts'].sum().reset_index().rename(columns={'Pts': 'Current Points'}).sort_values('Current Points', ascending=False)
+        st.dataframe(lb, hide_index=True, width="stretch")
 
 elif page == "Rival Watch":
     st.title("👀 Rival Watch")
     m_df = get_data("Matches").dropna(subset=['Match_ID', 'Player1'])
     p_df = get_data("Predictions"); opts = [f"{str(r['Match_ID']).replace('.0', '')}: {r['Player1']} vs {r['Player2']}" for _, r in m_df.iterrows()]
     if opts:
-        sel = st.selectbox("Pick a Match:", opts); target = sel.split(":")[0]; lb = get_leaderboard_data()
+        sel = st.selectbox("Pick a Match:", opts); target = sel.split(":")[0]
         if not p_df.empty:
             p_df['MID'] = p_df['Match_ID'].astype(str).str.replace('.0', '', regex=False)
-            match_p = p_df[p_df['MID'] == target].drop_duplicates('Username', keep='last')
-            rivals = match_p.merge(lb, on="Username", how="left").fillna(0)
-            st.dataframe(rivals[['Username', 'Score', 'Current Points']], hide_index=True, width="stretch")
+            rivals = p_df[p_df['MID'] == target].drop_duplicates('Username', keep='last')
+            st.dataframe(rivals[['Username', 'Score']], hide_index=True, width="stretch")
 
 elif page == "Highlights":
     st.title("📺 PDC Highlights")
@@ -245,9 +289,9 @@ elif page == "Admin":
     if st.text_input("Admin Password", type="password") == "darts2025":
         m_df = get_data("Matches").dropna(subset=['Match_ID', 'Player1'])
         target = st.selectbox("Select Match", [f"{str(r['Match_ID']).replace('.0', '')}: {r['Player1']} vs {r['Player2']}" for _, r in m_df.iterrows()])
-        c1, r1 = st.columns(2); c2, r2 = st.columns(2)
-        with c1: r1 = st.selectbox("P1", range(11))
-        with c2: r2 = st.selectbox("P2", range(11))
+        c1, c2 = st.columns(2) # FIXED COLUMN LAYOUT
+        with c1: r1 = st.selectbox("P1 Score", range(11))
+        with c2: r2 = st.selectbox("P2 Score", range(11))
         if st.button("Submit Result"):
             old = get_data("Results")
             new = pd.concat([old, pd.DataFrame([{"Match_ID": target.split(":")[0], "Score": f"{r1}-{r2}"}])])
