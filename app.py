@@ -11,19 +11,65 @@ from email.mime.multipart import MIMEMultipart
 # 1. Page Configuration
 st.set_page_config(page_title="PDC Predictor Pro", page_icon="🎯", layout="wide")
 
-# --- BUG FIX: SINGLETON COOKIE MANAGER ---
+# --- 2. GMAIL MAILING ENGINE ---
+# Moved up so it can be called immediately by the GitHub trigger
+def send_reminders():
+    try:
+        # Re-initialize connection inside the function for the standalone trigger
+        conn_internal = st.connection("gsheets", type=GSheetsConnection)
+        spreadsheet_url = st.secrets["connections"]["gsheets"]["spreadsheet"]
+        
+        u_df = conn_internal.read(spreadsheet=spreadsheet_url, worksheet="Users", ttl=0)
+        p_df = conn_internal.read(spreadsheet=spreadsheet_url, worksheet="Predictions", ttl=0)
+        m_df = conn_internal.read(spreadsheet=spreadsheet_url, worksheet="Matches", ttl=0)
+        
+        today = datetime.now().date()
+        m_df['Date_Parsed'] = pd.to_datetime(m_df['Date']).dt.date
+        todays_mids = m_df[m_df['Date_Parsed'] == today]['Match_ID'].astype(str).str.replace('.0', '', regex=False).tolist()
+        
+        if not todays_mids: return "No matches today."
+        
+        users_with_email = u_df[u_df['Email'].astype(str).str.contains("@", na=False)]
+        remind_count = 0
+        
+        server = smtplib.SMTP("smtp.gmail.com", 587)
+        server.starttls()
+        server.login(st.secrets["gmail"]["user"], st.secrets["gmail"]["password"])
+        
+        for _, user in users_with_email.iterrows():
+            user_preds = p_df[p_df['Username'] == user['Username']]
+            user_pred_mids = user_preds['Match_ID'].astype(str).str.replace('.0', '', regex=False).tolist()
+            
+            # If user hasn't predicted for ALL of today's matches, remind them
+            if not all(mid in user_pred_mids for mid in todays_mids):
+                msg = MIMEMultipart()
+                msg['From'] = f"PDC Predictor <{st.secrets['gmail']['user']}>"
+                msg['To'] = user['Email']
+                msg['Subject'] = "🎯 Darts Reminder: Matches Start Today!"
+                body = f"Hi {user['Username']},\n\nMatches are starting today! Don't forget to head over to the app and lock in your predictions.\n\nGood luck!"
+                msg.attach(MIMEText(body, 'plain'))
+                server.send_message(msg)
+                remind_count += 1
+        server.quit()
+        return f"Success: {remind_count} reminders sent."
+    except Exception as e: return f"Gmail Error: {str(e)}"
+
+# --- CRITICAL FIX FOR GITHUB ACTIONS ---
+# This block must run BEFORE any CookieManager or UI elements are initialized
+if st.query_params.get("trigger_reminders") == "true":
+    result = send_reminders()
+    st.write(result)
+    st.stop() # Stop execution here so GitHub doesn't trigger UI errors
+
+# --- 3. COOKIE & SESSION INITIALIZATION ---
 if 'cookie_manager' not in st.session_state:
     st.session_state['cookie_manager'] = stx.CookieManager(key="pdc_global_cookie_manager")
 
 cookie_manager = st.session_state['cookie_manager']
 
-# --- 2. SESSION STATE & BOOTSTRAP LOGIN ---
-if 'username' not in st.session_state: 
-    st.session_state['username'] = ""
-if 'audio_played' not in st.session_state: 
-    st.session_state['audio_played'] = False
-if 'logging_out' not in st.session_state:
-    st.session_state['logging_out'] = False
+if 'username' not in st.session_state: st.session_state['username'] = ""
+if 'audio_played' not in st.session_state: st.session_state['audio_played'] = False
+if 'logging_out' not in st.session_state: st.session_state['logging_out'] = False
 
 # Auto-login check
 if st.session_state['username'] == "" and not st.session_state['logging_out']:
@@ -32,15 +78,12 @@ if st.session_state['username'] == "" and not st.session_state['logging_out']:
         st.session_state['username'] = saved_user
         st.rerun()
 
-# --- 3. PREFERENCES & NAVIGATION SETUP ---
+# --- 4. PREFERENCES ---
 saved_mute = cookie_manager.get(cookie="pdc_mute")
 initial_mute = True if saved_mute == "True" else False
-
 saved_page = cookie_manager.get(cookie="pdc_page")
 page_options = ["Predictions", "Leaderboard", "Rival Watch", "Highlights", "Admin"]
 initial_page_index = page_options.index(saved_page) if saved_page in page_options else 0
-
-# GLOBAL PAGE VARIABLE: Ensures page is always defined to prevent NameError
 page = saved_page if saved_page in page_options else "Predictions"
 
 CHASE_THE_SUN_URL = "https://github.com/Domzy1888/DartsApp/raw/refs/heads/main/ytmp3free.cc_darts-chase-the-sun-extended-15-minutes-youtubemp3free.org.mp3"
@@ -55,42 +98,6 @@ def get_data(worksheet):
     except:
         return pd.DataFrame()
 
-# --- 4. GMAIL MAILING ENGINE ---
-def send_reminders():
-    try:
-        u_df = get_data("Users")
-        p_df = get_data("Predictions")
-        m_df = get_data("Matches")
-        today = datetime.now().date()
-        m_df['Date_Parsed'] = pd.to_datetime(m_df['Date']).dt.date
-        todays_mids = m_df[m_df['Date_Parsed'] == today]['Match_ID'].astype(str).str.replace('.0', '', regex=False).tolist()
-        if not todays_mids: return "No matches today."
-        users_with_email = u_df[u_df['Email'].astype(str).str.contains("@", na=False)]
-        remind_count = 0
-        server = smtplib.SMTP("smtp.gmail.com", 587)
-        server.starttls()
-        server.login(st.secrets["gmail"]["user"], st.secrets["gmail"]["password"])
-        for _, user in users_with_email.iterrows():
-            user_preds = p_df[p_df['Username'] == user['Username']]
-            user_pred_mids = user_preds['Match_ID'].astype(str).str.replace('.0', '', regex=False).tolist()
-            if not any(mid in user_pred_mids for mid in todays_mids):
-                msg = MIMEMultipart()
-                msg['From'] = f"PDC Predictor <{st.secrets['gmail']['user']}>"
-                msg['To'] = user['Email']
-                msg['Subject'] = "🎯 Darts Reminder: Matches Start Today!"
-                body = f"Hi {user['Username']},\n\nMatches are starting today! Don't forget to head over to the app and lock in your predictions.\n\nGood luck!"
-                msg.attach(MIMEText(body, 'plain'))
-                server.send_message(msg)
-                remind_count += 1
-        server.quit()
-        return f"Success: {remind_count} reminders sent."
-    except Exception as e: return f"Gmail Error: {str(e)}"
-
-if st.query_params.get("trigger_reminders") == "true":
-    result = send_reminders()
-    st.write(result)
-    st.stop()
-
 # --- 5. STYLING ---
 st.markdown("""
     <style>
@@ -98,17 +105,7 @@ st.markdown("""
     .stApp { background: linear-gradient(rgba(0,0,0,0.6), rgba(0,0,0,0.6)), url("https://cdn.images.express.co.uk/img/dynamic/4/590x/secondary/5856693.jpg?r=1735554407217"); background-size: cover; background-attachment: fixed; }
     h1, h2, h3, p, label { color: white !important; font-weight: bold; }
     [data-testid="stSidebarContent"] { background-color: #111111 !important; }
-    
-    .match-card { 
-        border: 2px solid #ffd700; 
-        border-radius: 20px; 
-        background-image: linear-gradient(rgba(0,0,0,0.5), rgba(0,0,0,0.5)), url("https://news.paddypower.com/assets/uploads/2023/12/Paddy-Power-World-Darts-Championship.jpg"); 
-        background-size: cover; 
-        background-position: center;
-        padding: 20px; 
-        margin-bottom: 10px; 
-    }
-    
+    .match-card { border: 2px solid #ffd700; border-radius: 20px; background-image: linear-gradient(rgba(0,0,0,0.5), rgba(0,0,0,0.5)), url("https://news.paddypower.com/assets/uploads/2023/12/Paddy-Power-World-Darts-Championship.jpg"); background-size: cover; background-position: center; padding: 20px; margin-bottom: 10px; }
     .match-wrapper { display: flex; align-items: flex-start; justify-content: space-around; width: 100%; gap: 5px; }
     .player-box { flex: 1; display: flex; flex-direction: column; align-items: center; text-align: center; }
     .player-img { width: 100%; max-width: 120px; border-radius: 10px; border: none !important; }
@@ -116,10 +113,7 @@ st.markdown("""
     .player-name { font-size: 1.1rem !important; font-weight: 900 !important; color: #ffd700 !important; margin-top: 10px; min-height: 3em; }
     .timer-text { font-weight: bold; font-size: 1.1rem; text-align: center; margin-bottom: 15px; }
     .timer-urgent { animation: pulse-red 1s infinite; font-weight: 900; }
-    
-    div.stButton > button, div.stFormSubmitButton > button, .custom-link-button {
-        background-color: #ffd700 !important; color: #000000 !important; font-weight: 900 !important; border-radius: 10px !important; width: 100% !important; border: none !important; text-decoration: none !important; display: inline-block; padding: 10px 20px; text-align: center;
-    }
+    div.stButton > button, div.stFormSubmitButton > button, .custom-link-button { background-color: #ffd700 !important; color: #000000 !important; font-weight: 900 !important; border-radius: 10px !important; width: 100% !important; border: none !important; text-decoration: none !important; display: inline-block; padding: 10px 20px; text-align: center; cursor: pointer; }
     div.stButton > button p, div.stFormSubmitButton > button p { color: #000000 !important; margin: 0; }
     </style>
 """, unsafe_allow_html=True)
@@ -127,7 +121,6 @@ st.markdown("""
 # --- 6. SIDEBAR & AUTH ---
 st.sidebar.title("🎯 PDC PREDICTOR")
 mute_audio = st.sidebar.toggle("🔈 Mute Walk-on Music", value=initial_mute)
-
 if mute_audio != initial_mute:
     cookie_manager.set("pdc_mute", str(mute_audio), expires_at=datetime.now() + timedelta(days=30))
 
@@ -161,18 +154,14 @@ else:
     if not mute_audio and not st.session_state['audio_played']:
         st.audio(CHASE_THE_SUN_URL, format="audio/mp3", autoplay=True)
         st.session_state['audio_played'] = True
-    
     st.sidebar.write(f"Logged in: **{st.session_state['username']}**")
     page_sel = st.sidebar.radio("Navigate", page_options, index=initial_page_index)
-    
     if page_sel != saved_page:
         cookie_manager.set("pdc_page", page_sel, expires_at=datetime.now() + timedelta(days=30))
         page = page_sel 
-
     if st.sidebar.button("Logout"):
         st.session_state['logging_out'] = True
-        st.session_state['username'] = ""
-        st.session_state['audio_played'] = False
+        st.session_state['username'] = ""; st.session_state['audio_played'] = False
         cookie_manager.delete("pdc_user_login")
         time.sleep(0.5); st.rerun()
 
@@ -248,9 +237,7 @@ elif page == "Rival Watch":
 elif page == "Highlights":
     st.title("📺 PDC Highlights")
     pdc_playlist_url = "https://www.youtube.com/embed?listType=user_uploads&list=OfficialPDC"
-    st.markdown(f"""
-        <iframe width="100%" height="600" src="{pdc_playlist_url}" title="PDC YouTube Highlights" frameborder="0" allowfullscreen style="border-radius:15px; border: 2px solid #ffd700;"></iframe>
-    """, unsafe_allow_html=True)
+    st.markdown(f"""<iframe width="100%" height="600" src="{pdc_playlist_url}" title="PDC YouTube Highlights" frameborder="0" allowfullscreen style="border-radius:15px; border: 2px solid #ffd700;"></iframe>""", unsafe_allow_html=True)
     st.markdown("""<div style='text-align: center; margin-top:20px;'><a href='https://www.youtube.com/@OfficialPDC/videos' target='_blank' class='custom-link-button'>📂 View All PDC Videos on YouTube</a></div>""", unsafe_allow_html=True)
 
 elif page == "Admin":
@@ -258,7 +245,7 @@ elif page == "Admin":
     if st.text_input("Admin Password", type="password") == "darts2025":
         m_df = get_data("Matches").dropna(subset=['Match_ID', 'Player1'])
         target = st.selectbox("Select Match", [f"{str(r['Match_ID']).replace('.0', '')}: {r['Player1']} vs {r['Player2']}" for _, r in m_df.iterrows()])
-        c1, c2 = st.columns(2)
+        c1, r1 = st.columns(2); c2, r2 = st.columns(2)
         with c1: r1 = st.selectbox("P1", range(11))
         with c2: r2 = st.selectbox("P2", range(11))
         if st.button("Submit Result"):
