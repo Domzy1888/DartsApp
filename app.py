@@ -12,7 +12,6 @@ from email.mime.multipart import MIMEMultipart
 st.set_page_config(page_title="PDC Predictor Pro", page_icon="🎯", layout="wide")
 
 # --- BUG FIX: SINGLETON COOKIE MANAGER ---
-# We initialize it once and store it in session state to avoid DuplicateElementKey errors.
 if 'cookie_manager' not in st.session_state:
     st.session_state['cookie_manager'] = stx.CookieManager(key="pdc_global_cookie_manager")
 
@@ -33,13 +32,16 @@ if st.session_state['username'] == "" and not st.session_state['logging_out']:
         st.session_state['username'] = saved_user
         st.rerun()
 
-# --- 3. PREFERENCES ---
+# --- 3. PREFERENCES & NAVIGATION SETUP ---
 saved_mute = cookie_manager.get(cookie="pdc_mute")
 initial_mute = True if saved_mute == "True" else False
 
 saved_page = cookie_manager.get(cookie="pdc_page")
 page_options = ["Predictions", "Leaderboard", "Rival Watch", "Highlights", "Admin"]
 initial_page_index = page_options.index(saved_page) if saved_page in page_options else 0
+
+# GLOBAL PAGE VARIABLE: Ensures page is always defined to prevent NameError
+page = saved_page if saved_page in page_options else "Predictions"
 
 CHASE_THE_SUN_URL = "https://github.com/Domzy1888/DartsApp/raw/refs/heads/main/ytmp3free.cc_darts-chase-the-sun-extended-15-minutes-youtubemp3free.org.mp3"
 conn = st.connection("gsheets", type=GSheetsConnection)
@@ -126,7 +128,6 @@ st.markdown("""
 st.sidebar.title("🎯 PDC PREDICTOR")
 mute_audio = st.sidebar.toggle("🔈 Mute Walk-on Music", value=initial_mute)
 
-# Updated Preference Saving (No extra CookieManager keys)
 if mute_audio != initial_mute:
     cookie_manager.set("pdc_mute", str(mute_audio), expires_at=datetime.now() + timedelta(days=30))
 
@@ -157,7 +158,6 @@ if st.session_state['username'] == "":
                     st.rerun()
                 else: st.sidebar.error("Invalid Login")
 else:
-    # Walk-on Music Logic
     if not mute_audio and not st.session_state['audio_played']:
         st.audio(CHASE_THE_SUN_URL, format="audio/mp3", autoplay=True)
         st.session_state['audio_played'] = True
@@ -167,7 +167,7 @@ else:
     
     if page_sel != saved_page:
         cookie_manager.set("pdc_page", page_sel, expires_at=datetime.now() + timedelta(days=30))
-        page = page_sel # Sync local page variable immediately
+        page = page_sel 
 
     if st.sidebar.button("Logout"):
         st.session_state['logging_out'] = True
