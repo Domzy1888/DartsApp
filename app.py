@@ -7,8 +7,11 @@ import extra_streamlit_components as stx
 import smtplib
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
-from bs4 import BeautifulSoup
-import requests
+try:
+    from bs4 import BeautifulSoup
+    import requests
+except ImportError:
+    pass # Will be handled by requirements.txt
 
 # 1. Page Configuration
 st.set_page_config(page_title="PDC Predictor Pro", page_icon="🎯", layout="wide")
@@ -86,19 +89,18 @@ def get_data(worksheet):
     except:
         return pd.DataFrame()
 
-# --- 5. STYLING ---
+# --- 5. STYLING (Strict Side-by-Side) ---
 st.markdown("""
     <style>
     .stApp { background: linear-gradient(rgba(0,0,0,0.6), rgba(0,0,0,0.6)), url("https://cdn.images.express.co.uk/img/dynamic/4/590x/secondary/5856693.jpg?r=1735554407217"); background-size: cover; background-attachment: fixed; }
     h1, h2, h3, p, label { color: white !important; font-weight: bold; }
     [data-testid="stSidebarContent"] { background-color: #111111 !important; }
     
-    /* Strict Horizontal Force for Dialog */
     div[data-testid="stDialog"] [data-testid="stHorizontalBlock"] {
         display: flex !important;
         flex-direction: row !important;
         flex-wrap: nowrap !important;
-        gap: 2px !important;
+        gap: 5px !important;
     }
     
     div[data-testid="stDialog"] [data-testid="column"] {
@@ -106,21 +108,18 @@ st.markdown("""
         flex: 1 1 auto !important;
     }
 
-    .player-img-h2h { width: 100% !important; border-radius: 8px; border: 1px solid #ffd700; }
-    
-    .match-card { border: 2px solid #ffd700; border-radius: 20px; background-image: linear-gradient(rgba(0,0,0,0.5), rgba(0,0,0,0.5)), url("https://news.paddypower.com/assets/uploads/2023/12/Paddy-Power-World-Darts-Championship.jpg"); background-size: cover; background-position: center; padding: 15px; margin-bottom: 10px; }
+    .player-img-h2h { width: 100% !important; border-radius: 8px; border: 1px solid #ffd700; height: auto; }
+    .match-card { border: 2px solid #ffd700; border-radius: 20px; background-image: linear-gradient(rgba(0,0,0,0.5), rgba(0,0,0,0.5)), url("https://news.paddypower.com/assets/uploads/2023/12/Paddy-Power-World-Darts-Championship.jpg"); background-size: cover; padding: 15px; margin-bottom: 10px; }
     .match-wrapper { display: flex; align-items: flex-start; justify-content: space-around; width: 100%; }
     .player-box { flex: 1; display: flex; flex-direction: column; align-items: center; text-align: center; }
     .player-img { width: 100%; max-width: 100px; border-radius: 10px; }
     .vs-text { color: #ffd700 !important; font-size: 1.2rem !important; font-weight: 900 !important; margin-top: 30px; }
-    .player-name { font-size: 0.9rem !important; color: #ffd700 !important; margin-top: 5px; min-height: 2em; line-height: 1.1; }
+    .player-name { font-size: 0.9rem !important; color: #ffd700 !important; margin-top: 5px; min-height: 2em; }
     
     div.stButton > button, div.stFormSubmitButton > button { background-color: #ffd700 !important; color: #000000 !important; font-weight: 900 !important; border-radius: 10px !important; }
 
     div[data-testid="stDialog"] div[role="dialog"] {
-        background-image: linear-gradient(rgba(0,0,0,0.95), rgba(0,0,0,0.95)), url("https://news.paddypower.com/assets/uploads/2023/12/Paddy-Power-World-Darts-Championship.jpg") !important;
-        background-size: cover !important;
-        background-position: center !important;
+        background: rgba(0,0,0,0.95) !important;
         border: 2px solid #ffd700 !important;
         padding: 10px !important;
     }
@@ -141,16 +140,21 @@ def show_h2h(p1, p2):
 
     c1, c2, c3 = st.columns([1, 1.8, 1])
     with c1:
-        img1 = d1['Player_Image'] if d1 is not None else ""
+        img1 = d1['Player_Image'] if d1 is not None and 'Player_Image' in d1 else ""
         st.markdown(f"<div style='text-align:center;'><img src='{img1}' class='player-img-h2h'><p style='font-size: 9px; margin-top:2px;'>{p1}</p></div>", unsafe_allow_html=True)
     with c3:
-        img2 = d2['Player_Image'] if d2 is not None else ""
+        img2 = d2['Player_Image'] if d2 is not None and 'Player_Image' in d2 else ""
         st.markdown(f"<div style='text-align:center;'><img src='{img2}' class='player-img-h2h'><p style='font-size: 9px; margin-top:2px;'>{p2}</p></div>", unsafe_allow_html=True)
     with c2:
-        stats_list = [("TITLES", "PDC_Titles"), ("AVG", "Tournament_Avg"), ("CHK %", "Checkout_Pct"), ("180s", "180s")]
-        for label, key in stats_list:
-            v1 = float(d1[key]) if d1 is not None else 0
-            v2 = float(d2[key]) if d2 is not None else 0
+        # Check column names carefully to avoid "nan"
+        stats_map = {"TITLES": ["PDC_Titles", "Titles"], "AVG": ["Tournament_Avg", "Avg"], "CHK %": ["Checkout_Pct", "Checkout %"], "180s": ["180s"]}
+        for label, keys in stats_map.items():
+            v1, v2 = 0, 0
+            for k in keys:
+                if d1 is not None and k in d1: v1 = float(d1[k]); break
+            for k in keys:
+                if d2 is not None and k in d2: v2 = float(d2[k]); break
+            
             total = v1 + v2 if (v1 + v2) > 0 else 1
             st.markdown(f"""<div style="margin-bottom:8px;"><div class="stat-row-ui"><span style="color:#ffd700; font-size:11px; font-weight:bold;">{v1}</span><span style="font-size:8px; color:#ccc;">{label}</span><span style="color:#007bff; font-size:11px; font-weight:bold;">{v2}</span></div><div class="stat-bar-bg"><div class="bar-gold" style="width:{(v1/total)*100}%;"></div><div class="bar-blue" style="width:{(v2/total)*100}%;"></div></div></div>""", unsafe_allow_html=True)
 
@@ -297,4 +301,4 @@ elif page == "Admin":
                     tables = pd.read_html(str(soup))
                     st.success("Fetched!")
                     st.dataframe(tables[0])
-                except Exception as e: st.error(f"Error: {str(e)}")
+                except Exception as e: st.error(f"Scraper Error: {str(e)}")
