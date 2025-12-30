@@ -1,8 +1,8 @@
-streamlit>=1.42.0
-st-paywall>=1.0.0
-st-gsheets-connection
+streamlit
+streamlit-gsheets-connection
 pandas
 extra-streamlit-components
-html5lib
 lxml
-
+html5lib
+beautifulsoup4
+requests
