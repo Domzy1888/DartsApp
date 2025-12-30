@@ -211,8 +211,11 @@ if page == "Predictions":
         m_df = get_data("Matches").dropna(subset=['Match_ID', 'Player1', 'Date'])
         p_df = get_data("Predictions"); r_df = get_data("Results"); now = datetime.now()
         
+        # Robust Date Sorting Fix
         m_df['Date_Parsed'] = pd.to_datetime(m_df['Date'], errors='coerce')
+        m_df = m_df.dropna(subset=['Date_Parsed']) # Drop any rows with bad dates
         days = sorted(m_df['Date_Parsed'].dt.date.unique())
+        
         if days:
             sel_day = st.selectbox("📅 Select Match Day", days)
             day_matches = m_df[m_df['Date_Parsed'].dt.date == sel_day]
@@ -240,6 +243,8 @@ if page == "Predictions":
                             new_p = pd.DataFrame([{"Username": st.session_state['username'], "Match_ID": mid, "Score": f"{s1}-{s2}"}])
                             conn.update(spreadsheet=URL, worksheet="Predictions", data=pd.concat([p_df, new_p], ignore_index=True))
                             st.cache_data.clear(); st.success("Saved!"); time.sleep(1); st.rerun()
+        else:
+            st.info("No upcoming matches scheduled in the database.")
 
 elif page == "Leaderboard":
     st.title("🏆 Leaderboard")
