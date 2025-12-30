@@ -80,7 +80,7 @@ URL = st.secrets["connections"]["gsheets"]["spreadsheet"]
 def get_data(worksheet):
     try:
         df = conn.read(spreadsheet=URL, worksheet=worksheet, ttl=0)
-        return df.dropna(how='all').fillna(0) # Fill NaN with 0 for cleaner UI
+        return df.dropna(how='all').fillna(0)
     except:
         return pd.DataFrame()
 
@@ -109,7 +109,6 @@ st.markdown("""
         border: 2px solid #ffd700 !important;
         min-width: 90% !important;
     }
-    /* Force horizontal layout for columns in the dialog */
     div[data-testid="stDialog"] [data-testid="stHorizontalBlock"] {
         display: flex !important;
         flex-direction: row !important;
@@ -145,60 +144,141 @@ def show_h2h(p1, p2):
     with c2:
         stats_list = [("WORLD TITLES", "World_Titles"), ("PDC TITLES", "PDC_Titles"), ("AVG", "Tournament_Avg"), ("CHECKOUT %", "Checkout_Pct"), ("180s", "180s")]
         for label, key in stats_list:
-            v1 = float(d1[key]) if d1 is not None else 0
-            v2 = float(d2[key]) if d2 is not None else 0
-            total = v1 + v2 if (v1 + v2) > 0 else 1
-            w1, w2 = (v1 / total) * 100, (v2 / total) * 100
+            v1 = d1[key] if d1 is not None else 0
+            v2 = d2[key] if d2 is not None else 0
+            total = float(v1) + float(v2) if (float(v1) + float(v2)) > 0 else 1
+            w1, w2 = (float(v1) / total) * 100, (float(v2) / total) * 100
             st.markdown(f"""<div style="margin-bottom:10px;"><div class="stat-row-ui"><span style="color:#ffd700; font-size:14px; font-weight:900;">{v1}</span><span style="color:#aaa; font-size:9px; letter-spacing:1px;">{label}</span><span style="color:#007bff; font-size:14px; font-weight:900;">{v2}</span></div><div class="stat-bar-bg"><div class="bar-gold" style="width:{w1}%;"></div><div class="bar-blue" style="width:{w2}%;"></div></div></div>""", unsafe_allow_html=True)
 
-# --- 7. AUTH & NAVIGATION (Condensed) ---
-# ... (Side bar logic remains the same as previous)
+# --- 7. SIDEBAR AUTH & NAVIGATION ---
+st.sidebar.title("🎯 PDC PREDICTOR")
+mute_audio = st.sidebar.toggle("🔈 Mute Walk-on Music", value=initial_mute)
+if mute_audio != initial_mute:
+    cookie_manager.set("pdc_mute", str(mute_audio), expires_at=datetime.now() + timedelta(days=30))
+st.sidebar.divider()
 
-# --- 8. PREDICTIONS PAGE ---
+if st.session_state['username'] == "":
+    auth_mode = st.sidebar.radio("Entry", ["Login", "Register"])
+    u_attempt = st.sidebar.text_input("Username").strip()
+    p_attempt = st.sidebar.text_input("Password", type="password")
+    if auth_mode == "Register":
+        email_val = st.sidebar.text_input("Email (Optional)").strip()
+    
+    if st.sidebar.button("Go"):
+        u_df = get_data("Users")
+        if auth_mode == "Register":
+            if u_attempt and p_attempt:
+                if not u_df.empty and u_attempt in u_df['Username'].astype(str).values:
+                    st.sidebar.error("Username taken.")
+                else:
+                    new_user = pd.DataFrame([{"Username": u_attempt, "Password": p_attempt, "Email": email_val if 'email_val' in locals() else ""}])
+                    conn.update(spreadsheet=URL, worksheet="Users", data=pd.concat([u_df, new_user], ignore_index=True))
+                    st.sidebar.success("Created! Please Login."); time.sleep(1); st.rerun()
+        else:
+            if not u_df.empty:
+                match = u_df[(u_df['Username'].astype(str) == u_attempt) & (u_df['Password'].astype(str) == str(p_attempt))]
+                if not match.empty:
+                    st.session_state['username'] = u_attempt
+                    st.session_state['logging_out'] = False
+                    cookie_manager.set("pdc_user_login", u_attempt, expires_at=datetime.now() + timedelta(days=30))
+                    st.rerun()
+                else:
+                    st.sidebar.error("Invalid Credentials")
+else:
+    if not mute_audio and not st.session_state['audio_played']:
+        st.audio(CHASE_THE_SUN_URL, format="audio/mp3", autoplay=True)
+        st.session_state['audio_played'] = True
+    
+    st.sidebar.write(f"Logged in: **{st.session_state['username']}**")
+    page_sel = st.sidebar.radio("Navigate", page_options, index=initial_page_index)
+    if page_sel != saved_page:
+        cookie_manager.set("pdc_page", page_sel, expires_at=datetime.now() + timedelta(days=30))
+        page = page_sel 
+    
+    if st.sidebar.button("Logout"):
+        st.session_state['logging_out'] = True
+        st.session_state['username'] = ""
+        st.session_state['audio_played'] = False
+        cookie_manager.delete("pdc_user_login")
+        time.sleep(0.5); st.rerun()
+
+# --- 8. PAGE CONTENT ---
 if page == "Predictions":
-    if st.session_state['username'] == "": st.warning("Please sign in.")
+    if st.session_state['username'] == "": 
+        st.warning("Please sign in using the sidebar to view matches.")
     else:
         st.title("Upcoming Matches")
         m_df = get_data("Matches").dropna(subset=['Match_ID', 'Player1', 'Date'])
         p_df = get_data("Predictions"); r_df = get_data("Results"); now = datetime.now()
         
-        # Match Filtering and Rendering
         m_df['Date_Parsed'] = pd.to_datetime(m_df['Date'], errors='coerce')
         days = sorted(m_df['Date_Parsed'].dt.date.unique())
         if days:
-            sel_day = st.selectbox("📅 Match Day", days)
+            sel_day = st.selectbox("📅 Select Match Day", days)
             day_matches = m_df[m_df['Date_Parsed'].dt.date == sel_day]
             for _, row in day_matches.iterrows():
                 mid = str(row['Match_ID']).replace('.0', '')
                 if not r_df.empty and mid in r_df['Match_ID'].astype(str).str.replace('.0', '', regex=False).values: continue
                 
-                # Match Card UI
+                diff = row['Date_Parsed'] - now
+                mins = diff.total_seconds() / 60
+                
                 st.markdown(f"<div class='match-card'><div class='match-wrapper'><div class='player-box'><img src=\"{row.get('P1_Image', '')}\" class='player-img'><div class='player-name'>{row['Player1']}</div></div><div class='vs-text'>VS</div><div class='player-box'><img src=\"{row.get('P2_Image', '')}\" class='player-img'><div class='player-name'>{row['Player2']}</div></div></div></div>", unsafe_allow_html=True)
                 
-                # Stats Dialog Trigger
                 if st.button(f"📊 Tale of the Tape: {row['Player1']} vs {row['Player2']}", key=f"h2h_{mid}"):
                     show_h2h(row['Player1'], row['Player2'])
 
-                # Prediction Form
                 with st.form(f"form_{mid}"):
-                    c1, c2 = st.columns(2)
-                    with c1: s1 = st.selectbox(f"{row['Player1']}", range(11), key=f"s1_{mid}")
-                    with c2: s2 = st.selectbox(f"{row['Player2']}", range(11), key=f"s2_{mid}")
-                    submit = st.form_submit_button("🔒 LOCK PREDICTION")
-                    
-                    if submit:
-                        new_p = pd.DataFrame([{"Username": st.session_state['username'], "Match_ID": mid, "Score": f"{s1}-{s2}"}])
-                        conn.update(spreadsheet=URL, worksheet="Predictions", data=pd.concat([p_df, new_p], ignore_index=True))
-                        st.cache_data.clear(); st.success("Saved!"); time.sleep(1); st.rerun()
+                    done = not p_df[(p_df['Username'] == st.session_state['username']) & (p_df['Match_ID'].astype(str).str.replace('.0', '', regex=False) == mid)].empty if not p_df.empty else False
+                    if done: st.success("Prediction Locked ✅")
+                    elif mins <= 0: st.error("Closed 🔒")
+                    else:
+                        c1, c2 = st.columns(2)
+                        with c1: s1 = st.selectbox(f"{row['Player1']}", range(11), key=f"s1_{mid}")
+                        with c2: s2 = st.selectbox(f"{row['Player2']}", range(11), key=f"s2_{mid}")
+                        if st.form_submit_button("🔒 LOCK PREDICTION"):
+                            new_p = pd.DataFrame([{"Username": st.session_state['username'], "Match_ID": mid, "Score": f"{s1}-{s2}"}])
+                            conn.update(spreadsheet=URL, worksheet="Predictions", data=pd.concat([p_df, new_p], ignore_index=True))
+                            st.cache_data.clear(); st.success("Saved!"); time.sleep(1); st.rerun()
 
-# --- ADMIN HUB ---
+elif page == "Leaderboard":
+    st.title("🏆 Leaderboard")
+    p_df = get_data("Predictions"); r_df = get_data("Results")
+    if p_df.empty or r_df.empty: st.write("No scores yet.")
+    else:
+        p_df['MID'] = p_df['Match_ID'].astype(str).str.replace('.0', '', regex=False)
+        r_df['MID'] = r_df['Match_ID'].astype(str).str.replace('.0', '', regex=False)
+        merged = p_df.merge(r_df, on="MID", suffixes=('_u', '_r'))
+        def calc(r):
+            try:
+                u1, u2 = map(int, str(r['Score_u']).split('-')); r1, r2 = map(int, str(r['Score_r']).split('-'))
+                if u1 == r1 and u2 == r2: return 3
+                return 1 if (u1 > u2 and r1 > r2) or (u1 < u2 and r1 < r2) else 0
+            except: return 0
+        merged['Pts'] = merged.apply(calc, axis=1)
+        lb = merged.groupby('Username')['Pts'].sum().reset_index().rename(columns={'Pts': 'Current Points'}).sort_values('Current Points', ascending=False)
+        st.dataframe(lb, hide_index=True, use_container_width=True)
+
 elif page == "Admin":
     st.title("⚙️ Admin Hub")
     if st.text_input("Admin Password", type="password") == "darts2025":
         if st.button("🚀 Scrape Latest 2025 Stats"):
-            try:
-                pdc_url = "https://www.pdc.tv/news/2025/12/26/202526-paddy-power-world-darts-championship-stats-update"
-                tables = pd.read_html(pdc_url, flavor='html5lib')
-                st.success("Fetched!")
-                st.dataframe(tables[0])
-            except Exception as e: st.error(f"Error: {e}")
+            with st.spinner("Fetching PDC data..."):
+                try:
+                    pdc_url = "https://www.pdc.tv/news/2025/12/26/202526-paddy-power-world-darts-championship-stats-update"
+                    tables = pd.read_html(pdc_url, flavor='html5lib')
+                    st.success("Fetched!")
+                    st.dataframe(tables[0].fillna("-"))
+                except Exception as e: st.error(f"Error: {e}")
+        
+        st.divider()
+        m_df = get_data("Matches").dropna(subset=['Match_ID', 'Player1'])
+        target = st.selectbox("Select Match to Settle", [f"{str(r['Match_ID']).replace('.0', '')}: {r['Player1']} vs {r['Player2']}" for _, r in m_df.iterrows()])
+        c1, c2 = st.columns(2)
+        with c1: r1 = st.selectbox("P1 Score", range(11))
+        with c2: r2 = st.selectbox("P2 Score", range(11))
+        if st.button("Publish Official Result"):
+            old = get_data("Results")
+            new_res = pd.concat([old, pd.DataFrame([{"Match_ID": target.split(":")[0], "Score": f"{r1}-{r2}"}])])
+            conn.update(spreadsheet=URL, worksheet="Results", data=new_res)
+            st.cache_data.clear(); st.success("Result Published!"); st.rerun()
