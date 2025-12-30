@@ -2,7 +2,7 @@ streamlit
 streamlit-gsheets-connection
 pandas
 extra-streamlit-components
-lxml
-html5lib
 beautifulsoup4
+html5lib
+lxml
 requests
