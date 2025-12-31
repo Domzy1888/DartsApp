@@ -166,42 +166,42 @@ def get_leaderboard_data():
     return merged.groupby('Username')['Pts'].sum().reset_index().rename(columns={'Pts': 'Current Points'}).sort_values('Current Points', ascending=False)
 
 # --- 8. THE H2H DIALOG ---
-@st.dialog(" ", width="medium") # Title hidden via CSS or kept short
+@st.dialog(" ", width="medium")
 def show_h2h_comparison(p1_name, p2_name, img1, img2):
     stats_df = get_data("Stats")
     try:
         s1 = stats_df[stats_df['Player Name'].str.contains(p1_name, case=False, na=False)].iloc[0]
         s2 = stats_df[stats_df['Player Name'].str.contains(p2_name, case=False, na=False)].iloc[0]
-    except:
-        st.error("Player stats not found in 'Stats' sheet.")
+        
+        # --- DATA FORMATTING FIXES ---
+        # Convert Rank to integer (removes .0)
+        rank1 = int(float(s1['World Ranking']))
+        rank2 = int(float(s2['World Ranking']))
+        
+        # Format Earnings as Currency (£) with commas
+        earn1 = f"£{int(float(s1['Total Earnings'])):,}"
+        earn2 = f"£{int(float(s2['Total Earnings'])):,}"
+        
+    except Exception as e:
+        st.error(f"Data formatting error: {e}")
         return
 
     st.markdown(f"""
         <style>
-        /* Centers the custom title and hides the default Streamlit dialog header padding */
         div[role="dialog"] {{
             background-image: linear-gradient(rgba(0,0,0,0.65), rgba(0,0,0,0.65)), 
                               url("https://news.paddypower.com/assets/uploads/2023/12/Paddy-Power-World-Darts-Championship.jpg");
-            background-size: cover; border: 2px solid #ffd700; color: white; padding: 20px;
+            background-size: cover; 
+            background-position: center; /* THIS CENTERS THE IMAGE */
+            border: 2px solid #ffd700; 
+            color: white; 
+            padding: 20px;
         }}
         .h2h-title {{ text-align: center; color: #ffd700; font-size: 1.5rem; font-weight: 900; margin-bottom: 20px; text-transform: uppercase; letter-spacing: 2px; }}
         .h2h-header {{ display: flex; justify-content: space-around; align-items: center; text-align: center; }}
-        
-        /* Uniform image height and aspect ratio control */
-        .player-profile img {{ 
-            height: 140px; 
-            width: auto; 
-            max-width: 140px;
-            object-fit: contain; 
-            background: none !important; 
-            border: none !important; 
-        }}
-        
+        .player-profile img {{ height: 140px; width: auto; max-width: 140px; object-fit: contain; background: none !important; border: none !important; }}
         .profile-text {{ font-size: 0.9rem; line-height: 1.4; color: #ffffff; margin-top: 10px; }}
-        
-        /* Drastically reduced VS text */
         .vs-middle {{ font-size: 1.2rem; font-weight: 900; color: #ffd700; margin: 0 10px; }}
-        
         .stat-label {{ text-align: center; color: #ffd700; font-weight: bold; font-size: 0.8rem; margin-top: 15px; text-transform: uppercase; }}
         .bar-container {{ display: flex; height: 16px; background: rgba(255,255,255,0.1); border-radius: 8px; overflow: hidden; margin: 5px 0; border: 1px solid rgba(255,255,255,0.2); }}
         .bar-left {{ background: #ffd700; height: 100%; }}
@@ -215,7 +215,7 @@ def show_h2h_comparison(p1_name, p2_name, img1, img2):
                 <img src="{img1}"><br>
                 <div class="profile-text">
                     <b style="font-size:1.2rem; color:#ffd700;">{p1_name}</b><br>
-                    "{s1['Nickname']}"<br>Rank: {s1['World Ranking']}<br>Earnings: {s1['Total Earnings']}
+                    "{s1['Nickname']}"<br>Rank: {rank1}<br>Earnings: {earn1}
                 </div>
             </div>
             <div class="vs-middle">VS</div>
@@ -223,12 +223,15 @@ def show_h2h_comparison(p1_name, p2_name, img1, img2):
                 <img src="{img2}"><br>
                 <div class="profile-text">
                     <b style="font-size:1.2rem; color:#ff4b4b;">{p2_name}</b><br>
-                    "{s2['Nickname']}"<br>Rank: {s2['World Ranking']}<br>Earnings: {s2['Total Earnings']}
+                    "{s2['Nickname']}"<br>Rank: {rank2}<br>Earnings: {earn2}
                 </div>
             </div>
         </div>
         <hr style="border: 0.5px solid rgba(255,215,0,0.3); margin: 20px 0;">
     """, unsafe_allow_html=True)
+    
+    # ... rest of your draw_bar calls remain the same ...
+
 
     def draw_bar(label, v1, v2, max_val):
         def clean(x): return float(str(x).replace('%','').replace('£','').replace(',',''))
