@@ -174,11 +174,8 @@ def show_h2h_comparison(p1_name, p2_name, img1, img2):
         s2 = stats_df[stats_df['Player Name'].str.contains(p2_name, case=False, na=False)].iloc[0]
         
         # --- DATA FORMATTING FIXES ---
-        # Convert Rank to integer (removes .0)
         rank1 = int(float(s1['World Ranking']))
         rank2 = int(float(s2['World Ranking']))
-        
-        # Format Earnings as Currency (£) with commas
         earn1 = f"£{int(float(s1['Total Earnings'])):,}"
         earn2 = f"£{int(float(s2['Total Earnings'])):,}"
         
@@ -192,7 +189,7 @@ def show_h2h_comparison(p1_name, p2_name, img1, img2):
             background-image: linear-gradient(rgba(0,0,0,0.65), rgba(0,0,0,0.65)), 
                               url("https://news.paddypower.com/assets/uploads/2023/12/Paddy-Power-World-Darts-Championship.jpg");
             background-size: cover; 
-            background-position: center; /* THIS CENTERS THE IMAGE */
+            background-position: center;
             border: 2px solid #ffd700; 
             color: white; 
             padding: 20px;
@@ -202,7 +199,18 @@ def show_h2h_comparison(p1_name, p2_name, img1, img2):
         .player-profile img {{ height: 140px; width: auto; max-width: 140px; object-fit: contain; background: none !important; border: none !important; }}
         .profile-text {{ font-size: 0.9rem; line-height: 1.4; color: #ffffff; margin-top: 10px; }}
         .vs-middle {{ font-size: 1.2rem; font-weight: 900; color: #ffd700; margin: 0 10px; }}
+        
+        /* Reverted Spacing */
         .stat-label {{ text-align: center; color: #ffd700; font-weight: bold; font-size: 0.8rem; margin-top: 15px; text-transform: uppercase; }}
+        
+        .stat-values-row {{ 
+            display: flex; 
+            justify-content: space-between; 
+            font-weight: bold; 
+            padding: 0 15px; 
+            color: white !important; 
+        }}
+
         .bar-container {{ display: flex; height: 16px; background: rgba(255,255,255,0.1); border-radius: 8px; overflow: hidden; margin: 5px 0; border: 1px solid rgba(255,255,255,0.2); }}
         .bar-left {{ background: #ffd700; height: 100%; }}
         .bar-right {{ background: #ff4b4b; height: 100%; }}
@@ -229,32 +237,40 @@ def show_h2h_comparison(p1_name, p2_name, img1, img2):
         </div>
         <hr style="border: 0.5px solid rgba(255,215,0,0.3); margin: 20px 0;">
     """, unsafe_allow_html=True)
-    
-    # ... rest of your draw_bar calls remain the same ...
 
-
-    def draw_bar(label, v1, v2, max_val):
-        def clean(x): return float(str(x).replace('%','').replace('£','').replace(',',''))
+    def draw_bar(label, v1, v2):
+        def clean(x):
+            try:
+                return float(str(x).replace('%','').replace('£','').replace(',',''))
+            except:
+                return 0.0
+        
         n1, n2 = clean(v1), clean(v2)
-        p1, p2 = (n1 / max_val) * 100, (n2 / max_val) * 100
+        total = n1 + n2
+        
+        if total > 0:
+            p1 = (n1 / total) * 100
+            p2 = (n2 / total) * 100
+        else:
+            p1, p2 = 0, 0
+            
         st.markdown(f"""
             <div class="stat-label">{label}</div>
-            <div style="display: flex; justify-content: space-between; font-weight: bold; padding: 0 15px;">
+            <div class="stat-values-row">
                 <span>{v1}</span><span>{v2}</span>
             </div>
             <div class="bar-container">
                 <div class="bar-left" style="width: {p1}%"></div>
-                <div style="width: 4px; background: white;"></div>
+                <div style="width: 2px; background: white; opacity: 0.5;"></div>
                 <div class="bar-right" style="width: {p2}%"></div>
             </div>
         """, unsafe_allow_html=True)
 
-    draw_bar("Televised Titles", s1['Televised Titles'], s2['Televised Titles'], 30)
-    draw_bar("Season Win %", s1['Season Win %'], s2['Season Win %'], 100)
-    draw_bar("Highest Average", s1['Highest Average'], s2['Highest Average'], 125)
-    draw_bar("Checkout %", s1['Checkout %'], s2['Checkout %'], 100)
-    draw_bar("180s (12m)", s1['180s (12m)'], s2['180s (12m)'], 500)
-
+    draw_bar("Televised Titles", s1['Televised Titles'], s2['Televised Titles'])
+    draw_bar("Season Win %", s1['Season Win %'], s2['Season Win %'])
+    draw_bar("Highest Average", s1['Highest Average'], s2['Highest Average'])
+    draw_bar("Checkout %", s1['Checkout %'], s2['Checkout %'])
+    draw_bar("180s (12m)", s1['180s (12m)'], s2['180s (12m)'])
 
 # --- 9. PAGES ---
 if page == "Predictions":
