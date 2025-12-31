@@ -281,13 +281,15 @@ if page == "Predictions":
         p_df = get_data("Predictions"); r_df = get_data("Results"); now = datetime.now()
         m_df['Date_Parsed'] = pd.to_datetime(m_df['Date'], errors='coerce')
         days = sorted(m_df['Date_Parsed'].dt.date.unique())
+        
         if days:
             sel_day = st.selectbox("📅 Select Match Day", days)
             day_matches = m_df[m_df['Date_Parsed'].dt.date == sel_day]
-            # Use separate form elements carefully to allow popups to work
+            
             for _, row in day_matches.iterrows():
                 mid = str(row['Match_ID']).replace('.0', '')
                 if not r_df.empty and mid in r_df['Match_ID'].astype(str).str.replace('.0', '', regex=False).values: continue
+                
                 diff = row['Date_Parsed'] - now
                 mins = diff.total_seconds() / 60
                 
@@ -297,23 +299,41 @@ if page == "Predictions":
                 
                 st.markdown(f"<div class='match-card'>{timer}<div class='match-wrapper'><div class='player-box'><img src=\"{row.get('P1_Image', '')}\" class='player-img'><div class='player-name'>{row['Player1']}</div></div><div class='vs-text'>VS</div><div class='player-box'><img src=\"{row.get('P2_Image', '')}\" class='player-img'><div class='player-name'>{row['Player2']}</div></div></div></div>", unsafe_allow_html=True)
                 
-                # INTEGRATED STATS BUTTON (Outside form for Dialog compatibility)
+                # Stats Button
                 if st.button(f"📊 Stats: {row['Player1']} vs {row['Player2']}", key=f"stats_{mid}"):
                     show_h2h_comparison(row['Player1'], row['Player2'], row.get('P1_Image',''), row.get('P2_Image',''))
 
-                with st.form(f"form_{mid}", clear_on_submit=False):
-                    done = not p_df[(p_df['Username'] == st.session_state['username']) & (p_df['Match_ID'].astype(str).str.replace('.0', '', regex=False) == mid)].empty if not p_df.empty else False
-                    if done: st.success("Prediction Locked ✅")
-                    elif mins <= 0: st.error("Closed 🔒")
-                    else:
+                # --- UPDATED FORM LOGIC TO PREVENT KEYERROR ---
+                user_has_predicted = not p_df[(p_df['Username'] == st.session_state['username']) & (p_df['Match_ID'].astype(str).str.replace('.0', '', regex=False) == mid)].empty if not p_df.empty else False
+                
+                if user_has_predicted:
+                    st.success("Prediction Locked ✅")
+                elif mins <= 0:
+                    st.error("Closed 🔒")
+                else:
+                    # Creating a unique form for this match
+                    with st.form(f"form_{mid}", clear_on_submit=False):
                         c1, c2 = st.columns(2)
-                        with c1: s1 = st.selectbox(f"{row['Player1']}", range(11), key=f"s1_{mid}")
-                        with c2: s2 = st.selectbox(f"{row['Player2']}", range(11), key=f"s2_{mid}")
-                        if st.form_submit_button("🔒 LOCK PREDICTION"):
-                            score_val = f"{s1}-{s2}"
-                            new_pred = pd.DataFrame([{"Username": st.session_state['username'], "Match_ID": mid, "Score": score_val}])
+                        with c1: 
+                            s1_val = st.selectbox(f"{row['Player1']}", range(11), key=f"s1_{mid}")
+                        with c2: 
+                            s2_val = st.selectbox(f"{row['Player2']}", range(11), key=f"s2_{mid}")
+                        
+                        submit = st.form_submit_button("🔒 LOCK PREDICTION")
+                        
+                        if submit:
+                            # We use the local variables s1_val and s2_val directly
+                            score_str = f"{s1_val}-{s2_val}"
+                            new_pred = pd.DataFrame([{"Username": st.session_state['username'], "Match_ID": mid, "Score": score_str}])
+                            
+                            # Update Sheets
                             conn.update(spreadsheet=URL, worksheet="Predictions", data=pd.concat([p_df, new_pred], ignore_index=True))
-                            st.cache_data.clear(); st.success("Saved!"); time.sleep(1); st.rerun()
+                            
+                            st.cache_data.clear()
+                            st.success("Saved!")
+                            time.sleep(1)
+                            st.rerun()
+
 
 elif page == "Leaderboard":
     st.title("🏆 Leaderboard")
