@@ -184,7 +184,7 @@ def show_h2h_comparison(p1_name, p2_name, img1, img2):
             background-size: cover; border: 2px solid #ffd700; color: white; padding: 20px;
         }}
         .h2h-header {{ display: flex; justify-content: space-around; align-items: flex-start; text-align: center; }}
-        .player-profile img {{ width: 140px; border-radius: 15px; border: 3px solid #ffd700; background: white; }}
+        .player-profile img {{ width: 140px; border-radius: 15px; border: border: none !important; background: none !important; }}
         .profile-text {{ font-size: 0.9rem; line-height: 1.4; color: #ffffff; margin-top: 10px; }}
         .vs-middle {{ font-size: 3.5rem; font-weight: 900; color: #ffd700; margin-top: 40px; }}
         .stat-label {{ text-align: center; color: #ffd700; font-weight: bold; font-size: 0.8rem; margin-top: 15px; text-transform: uppercase; }}
