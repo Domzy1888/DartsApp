@@ -166,7 +166,7 @@ def get_leaderboard_data():
     return merged.groupby('Username')['Pts'].sum().reset_index().rename(columns={'Pts': 'Current Points'}).sort_values('Current Points', ascending=False)
 
 # --- 8. THE H2H DIALOG ---
-@st.dialog("HEAD-TO-HEAD BATTLE", width="medium")
+@st.dialog("H2H", width="medium") # Title hidden via CSS or kept short
 def show_h2h_comparison(p1_name, p2_name, img1, img2):
     stats_df = get_data("Stats")
     try:
@@ -178,20 +178,38 @@ def show_h2h_comparison(p1_name, p2_name, img1, img2):
 
     st.markdown(f"""
         <style>
+        /* Centers the custom title and hides the default Streamlit dialog header padding */
         div[role="dialog"] {{
             background-image: linear-gradient(rgba(0,0,0,0.65), rgba(0,0,0,0.65)), 
                               url("https://news.paddypower.com/assets/uploads/2023/12/Paddy-Power-World-Darts-Championship.jpg");
             background-size: cover; border: 2px solid #ffd700; color: white; padding: 20px;
         }}
-        .h2h-header {{ display: flex; justify-content: space-around; align-items: flex-start; text-align: center; }}
-        .player-profile img {{ width: 140px; border-radius: 15px; border: border: none !important; background: none !important; }}
+        .h2h-title {{ text-align: center; color: #ffd700; font-size: 1.5rem; font-weight: 900; margin-bottom: 20px; text-transform: uppercase; letter-spacing: 2px; }}
+        .h2h-header {{ display: flex; justify-content: space-around; align-items: center; text-align: center; }}
+        
+        /* Uniform image height and aspect ratio control */
+        .player-profile img {{ 
+            height: 140px; 
+            width: auto; 
+            max-width: 140px;
+            object-fit: contain; 
+            background: none !important; 
+            border: none !important; 
+        }}
+        
         .profile-text {{ font-size: 0.9rem; line-height: 1.4; color: #ffffff; margin-top: 10px; }}
-        .vs-middle {{ font-size: 3.5rem; font-weight: 900; color: #ffd700; margin-top: 40px; }}
+        
+        /* Drastically reduced VS text */
+        .vs-middle {{ font-size: 1.2rem; font-weight: 900; color: #ffd700; margin: 0 10px; }}
+        
         .stat-label {{ text-align: center; color: #ffd700; font-weight: bold; font-size: 0.8rem; margin-top: 15px; text-transform: uppercase; }}
         .bar-container {{ display: flex; height: 16px; background: rgba(255,255,255,0.1); border-radius: 8px; overflow: hidden; margin: 5px 0; border: 1px solid rgba(255,255,255,0.2); }}
         .bar-left {{ background: #ffd700; height: 100%; }}
         .bar-right {{ background: #ff4b4b; height: 100%; }}
         </style>
+
+        <div class="h2h-title">Head-to-Head Battle</div>
+        
         <div class="h2h-header">
             <div class="player-profile">
                 <img src="{img1}"><br>
@@ -233,6 +251,7 @@ def show_h2h_comparison(p1_name, p2_name, img1, img2):
     draw_bar("Highest Average", s1['Highest Average'], s2['Highest Average'], 125)
     draw_bar("Checkout %", s1['Checkout %'], s2['Checkout %'], 100)
     draw_bar("180s (12m)", s1['180s (12m)'], s2['180s (12m)'], 500)
+
 
 # --- 9. PAGES ---
 if page == "Predictions":
