@@ -166,7 +166,7 @@ def get_leaderboard_data():
     return merged.groupby('Username')['Pts'].sum().reset_index().rename(columns={'Pts': 'Current Points'}).sort_values('Current Points', ascending=False)
 
 # --- 8. THE H2H DIALOG ---
-@st.dialog("H2H", width="medium") # Title hidden via CSS or kept short
+@st.dialog(" ", width="medium") # Title hidden via CSS or kept short
 def show_h2h_comparison(p1_name, p2_name, img1, img2):
     stats_df = get_data("Stats")
     try:
