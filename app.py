@@ -166,7 +166,7 @@ def get_leaderboard_data():
     return merged.groupby('Username')['Pts'].sum().reset_index().rename(columns={'Pts': 'Current Points'}).sort_values('Current Points', ascending=False)
 
 # --- 8. THE H2H DIALOG ---
-@st.dialog("🎯 HEAD-TO-HEAD BATTLE", width="large")
+@st.dialog("HEAD-TO-HEAD BATTLE", width="medium")
 def show_h2h_comparison(p1_name, p2_name, img1, img2):
     stats_df = get_data("Stats")
     try:
@@ -179,7 +179,7 @@ def show_h2h_comparison(p1_name, p2_name, img1, img2):
     st.markdown(f"""
         <style>
         div[role="dialog"] {{
-            background-image: linear-gradient(rgba(0,0,0,0.85), rgba(0,0,0,0.85)), 
+            background-image: linear-gradient(rgba(0,0,0,0.65), rgba(0,0,0,0.65)), 
                               url("https://news.paddypower.com/assets/uploads/2023/12/Paddy-Power-World-Darts-Championship.jpg");
             background-size: cover; border: 2px solid #ffd700; color: white; padding: 20px;
         }}
