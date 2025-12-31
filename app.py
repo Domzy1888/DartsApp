@@ -12,35 +12,25 @@ from email.mime.multipart import MIMEMultipart
 st.set_page_config(page_title="PDC Predictor Pro", page_icon="🎯", layout="wide")
 
 # --- 2. GMAIL MAILING ENGINE ---
-# Moved up so it can be called immediately by the GitHub trigger
 def send_reminders():
     try:
-        # Re-initialize connection inside the function for the standalone trigger
         conn_internal = st.connection("gsheets", type=GSheetsConnection)
         spreadsheet_url = st.secrets["connections"]["gsheets"]["spreadsheet"]
-        
         u_df = conn_internal.read(spreadsheet=spreadsheet_url, worksheet="Users", ttl=0)
         p_df = conn_internal.read(spreadsheet=spreadsheet_url, worksheet="Predictions", ttl=0)
         m_df = conn_internal.read(spreadsheet=spreadsheet_url, worksheet="Matches", ttl=0)
-        
         today = datetime.now().date()
         m_df['Date_Parsed'] = pd.to_datetime(m_df['Date']).dt.date
         todays_mids = m_df[m_df['Date_Parsed'] == today]['Match_ID'].astype(str).str.replace('.0', '', regex=False).tolist()
-        
         if not todays_mids: return "No matches today."
-        
         users_with_email = u_df[u_df['Email'].astype(str).str.contains("@", na=False)]
         remind_count = 0
-        
         server = smtplib.SMTP("smtp.gmail.com", 587)
         server.starttls()
         server.login(st.secrets["gmail"]["user"], st.secrets["gmail"]["password"])
-        
         for _, user in users_with_email.iterrows():
             user_preds = p_df[p_df['Username'] == user['Username']]
             user_pred_mids = user_preds['Match_ID'].astype(str).str.replace('.0', '', regex=False).tolist()
-            
-            # If user hasn't predicted for ALL of today's matches, remind them
             if not all(mid in user_pred_mids for mid in todays_mids):
                 msg = MIMEMultipart()
                 msg['From'] = f"PDC Predictor <{st.secrets['gmail']['user']}>"
@@ -54,24 +44,19 @@ def send_reminders():
         return f"Success: {remind_count} reminders sent."
     except Exception as e: return f"Gmail Error: {str(e)}"
 
-# --- CRITICAL FIX FOR GITHUB ACTIONS ---
-# This block must run BEFORE any CookieManager or UI elements are initialized
 if st.query_params.get("trigger_reminders") == "true":
     result = send_reminders()
     st.write(result)
-    st.stop() # Stop execution here so GitHub doesn't trigger UI errors
+    st.stop()
 
 # --- 3. COOKIE & SESSION INITIALIZATION ---
 if 'cookie_manager' not in st.session_state:
     st.session_state['cookie_manager'] = stx.CookieManager(key="pdc_global_cookie_manager")
-
 cookie_manager = st.session_state['cookie_manager']
-
 if 'username' not in st.session_state: st.session_state['username'] = ""
 if 'audio_played' not in st.session_state: st.session_state['audio_played'] = False
 if 'logging_out' not in st.session_state: st.session_state['logging_out'] = False
 
-# Auto-login check
 if st.session_state['username'] == "" and not st.session_state['logging_out']:
     saved_user = cookie_manager.get(cookie="pdc_user_login")
     if saved_user:
@@ -123,7 +108,6 @@ st.sidebar.title("🎯 PDC PREDICTOR")
 mute_audio = st.sidebar.toggle("🔈 Mute Walk-on Music", value=initial_mute)
 if mute_audio != initial_mute:
     cookie_manager.set("pdc_mute", str(mute_audio), expires_at=datetime.now() + timedelta(days=30))
-
 st.sidebar.divider()
 
 if st.session_state['username'] == "":
@@ -181,7 +165,76 @@ def get_leaderboard_data():
     merged['Pts'] = merged.apply(calc, axis=1)
     return merged.groupby('Username')['Pts'].sum().reset_index().rename(columns={'Pts': 'Current Points'}).sort_values('Current Points', ascending=False)
 
-# --- 8. PAGES ---
+# --- 8. THE H2H DIALOG ---
+@st.dialog("🎯 HEAD-TO-HEAD BATTLE", width="large")
+def show_h2h_comparison(p1_name, p2_name, img1, img2):
+    stats_df = get_data("Stats")
+    try:
+        s1 = stats_df[stats_df['Player Name'].str.contains(p1_name, case=False, na=False)].iloc[0]
+        s2 = stats_df[stats_df['Player Name'].str.contains(p2_name, case=False, na=False)].iloc[0]
+    except:
+        st.error("Player stats not found in 'Stats' sheet.")
+        return
+
+    st.markdown(f"""
+        <style>
+        div[role="dialog"] {{
+            background-image: linear-gradient(rgba(0,0,0,0.85), rgba(0,0,0,0.85)), 
+                              url("https://news.paddypower.com/assets/uploads/2023/12/Paddy-Power-World-Darts-Championship.jpg");
+            background-size: cover; border: 2px solid #ffd700; color: white; padding: 20px;
+        }}
+        .h2h-header {{ display: flex; justify-content: space-around; align-items: flex-start; text-align: center; }}
+        .player-profile img {{ width: 140px; border-radius: 15px; border: 3px solid #ffd700; background: white; }}
+        .profile-text {{ font-size: 0.9rem; line-height: 1.4; color: #ffffff; margin-top: 10px; }}
+        .vs-middle {{ font-size: 3.5rem; font-weight: 900; color: #ffd700; margin-top: 40px; }}
+        .stat-label {{ text-align: center; color: #ffd700; font-weight: bold; font-size: 0.8rem; margin-top: 15px; text-transform: uppercase; }}
+        .bar-container {{ display: flex; height: 16px; background: rgba(255,255,255,0.1); border-radius: 8px; overflow: hidden; margin: 5px 0; border: 1px solid rgba(255,255,255,0.2); }}
+        .bar-left {{ background: #ffd700; height: 100%; }}
+        .bar-right {{ background: #ff4b4b; height: 100%; }}
+        </style>
+        <div class="h2h-header">
+            <div class="player-profile">
+                <img src="{img1}"><br>
+                <div class="profile-text">
+                    <b style="font-size:1.2rem; color:#ffd700;">{p1_name}</b><br>
+                    "{s1['Nickname']}"<br>Rank: {s1['World Ranking']}<br>Earnings: {s1['Total Earnings']}
+                </div>
+            </div>
+            <div class="vs-middle">VS</div>
+            <div class="player-profile">
+                <img src="{img2}"><br>
+                <div class="profile-text">
+                    <b style="font-size:1.2rem; color:#ff4b4b;">{p2_name}</b><br>
+                    "{s2['Nickname']}"<br>Rank: {s2['World Ranking']}<br>Earnings: {s2['Total Earnings']}
+                </div>
+            </div>
+        </div>
+        <hr style="border: 0.5px solid rgba(255,215,0,0.3); margin: 20px 0;">
+    """, unsafe_allow_html=True)
+
+    def draw_bar(label, v1, v2, max_val):
+        def clean(x): return float(str(x).replace('%','').replace('£','').replace(',',''))
+        n1, n2 = clean(v1), clean(v2)
+        p1, p2 = (n1 / max_val) * 100, (n2 / max_val) * 100
+        st.markdown(f"""
+            <div class="stat-label">{label}</div>
+            <div style="display: flex; justify-content: space-between; font-weight: bold; padding: 0 15px;">
+                <span>{v1}</span><span>{v2}</span>
+            </div>
+            <div class="bar-container">
+                <div class="bar-left" style="width: {p1}%"></div>
+                <div style="width: 4px; background: white;"></div>
+                <div class="bar-right" style="width: {p2}%"></div>
+            </div>
+        """, unsafe_allow_html=True)
+
+    draw_bar("Televised Titles", s1['Televised Titles'], s2['Televised Titles'], 30)
+    draw_bar("Season Win %", s1['Season Win %'], s2['Season Win %'], 100)
+    draw_bar("Highest Average", s1['Highest Average'], s2['Highest Average'], 125)
+    draw_bar("Checkout %", s1['Checkout %'], s2['Checkout %'], 100)
+    draw_bar("180s (12m)", s1['180s (12m)'], s2['180s (12m)'], 500)
+
+# --- 9. PAGES ---
 if page == "Predictions":
     if st.session_state['username'] == "": st.warning("Please sign in.")
     else:
@@ -193,30 +246,36 @@ if page == "Predictions":
         if days:
             sel_day = st.selectbox("📅 Select Match Day", days)
             day_matches = m_df[m_df['Date_Parsed'].dt.date == sel_day]
-            with st.form("prediction_form", clear_on_submit=False):
-                open_list = []
-                for _, row in day_matches.iterrows():
-                    mid = str(row['Match_ID']).replace('.0', '')
-                    if not r_df.empty and mid in r_df['Match_ID'].astype(str).str.replace('.0', '', regex=False).values: continue
-                    diff = row['Date_Parsed'] - now
-                    mins = diff.total_seconds() / 60
-                    if mins > 60: timer = f"<div class='timer-text' style='color:#00ff00;'>Starts in {int(mins/60)}h {int(mins%60)}m</div>"
-                    elif 0 < mins <= 60: timer = f"<div class='timer-text timer-urgent'>⚠️ STARTING SOON</div>"
-                    else: timer = "<div class='timer-text' style='color:#ff4b4b;'>Locked / Live</div>"
-                    st.markdown(f"<div class='match-card'>{timer}<div class='match-wrapper'><div class='player-box'><img src=\"{row.get('P1_Image', '')}\" class='player-img'><div class='player-name'>{row['Player1']}</div></div><div class='vs-text'>VS</div><div class='player-box'><img src=\"{row.get('P2_Image', '')}\" class='player-img'><div class='player-name'>{row['Player2']}</div></div></div></div>", unsafe_allow_html=True)
+            # Use separate form elements carefully to allow popups to work
+            for _, row in day_matches.iterrows():
+                mid = str(row['Match_ID']).replace('.0', '')
+                if not r_df.empty and mid in r_df['Match_ID'].astype(str).str.replace('.0', '', regex=False).values: continue
+                diff = row['Date_Parsed'] - now
+                mins = diff.total_seconds() / 60
+                
+                if mins > 60: timer = f"<div class='timer-text' style='color:#00ff00;'>Starts in {int(mins/60)}h {int(mins%60)}m</div>"
+                elif 0 < mins <= 60: timer = f"<div class='timer-text timer-urgent'>⚠️ STARTING SOON</div>"
+                else: timer = "<div class='timer-text' style='color:#ff4b4b;'>Locked / Live</div>"
+                
+                st.markdown(f"<div class='match-card'>{timer}<div class='match-wrapper'><div class='player-box'><img src=\"{row.get('P1_Image', '')}\" class='player-img'><div class='player-name'>{row['Player1']}</div></div><div class='vs-text'>VS</div><div class='player-box'><img src=\"{row.get('P2_Image', '')}\" class='player-img'><div class='player-name'>{row['Player2']}</div></div></div></div>", unsafe_allow_html=True)
+                
+                # INTEGRATED STATS BUTTON (Outside form for Dialog compatibility)
+                if st.button(f"📊 Stats: {row['Player1']} vs {row['Player2']}", key=f"stats_{mid}"):
+                    show_h2h_comparison(row['Player1'], row['Player2'], row.get('P1_Image',''), row.get('P2_Image',''))
+
+                with st.form(f"form_{mid}", clear_on_submit=False):
                     done = not p_df[(p_df['Username'] == st.session_state['username']) & (p_df['Match_ID'].astype(str).str.replace('.0', '', regex=False) == mid)].empty if not p_df.empty else False
                     if done: st.success("Prediction Locked ✅")
                     elif mins <= 0: st.error("Closed 🔒")
                     else:
-                        open_list.append(mid); c1, c2 = st.columns(2)
+                        c1, c2 = st.columns(2)
                         with c1: s1 = st.selectbox(f"{row['Player1']}", range(11), key=f"s1_{mid}")
                         with c2: s2 = st.selectbox(f"{row['Player2']}", range(11), key=f"s2_{mid}")
-                        if 'temp' not in st.session_state: st.session_state.temp = {}
-                        st.session_state.temp[mid] = f"{s1}-{s2}"
-                if st.form_submit_button("🔒 LOCK ALL PREDICTIONS") and open_list:
-                    new = [{"Username": st.session_state['username'], "Match_ID": m, "Score": st.session_state.temp.get(m, "0-0")} for m in open_list]
-                    conn.update(spreadsheet=URL, worksheet="Predictions", data=pd.concat([p_df, pd.DataFrame(new)], ignore_index=True))
-                    st.cache_data.clear(); st.success("Saved!"); time.sleep(1); st.rerun()
+                        if st.form_submit_button("🔒 LOCK PREDICTION"):
+                            score_val = f"{s1}-{s2}"
+                            new_pred = pd.DataFrame([{"Username": st.session_state['username'], "Match_ID": mid, "Score": score_val}])
+                            conn.update(spreadsheet=URL, worksheet="Predictions", data=pd.concat([p_df, new_pred], ignore_index=True))
+                            st.cache_data.clear(); st.success("Saved!"); time.sleep(1); st.rerun()
 
 elif page == "Leaderboard":
     st.title("🏆 Leaderboard")
