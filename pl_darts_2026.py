@@ -26,45 +26,69 @@ def get_data(worksheet):
     except:
         return pd.DataFrame()
 
-# --- 4. STYLING (Dark Sidebar & Fixed Cards) ---
+# --- 4. STYLING (BetMGM Premier League Edition) ---
 st.markdown("""
     <style>
-    /* 1. Main Background */
+    /* 1. Main Background - Darker for better contrast on mobile */
     .stApp { 
-        background: linear-gradient(rgba(0,0,0,0.7), rgba(0,0,0,0.7)), 
+        background: linear-gradient(rgba(0,0,0,0.85), rgba(0,0,0,0.85)), 
                     url("https://cdn.images.express.co.uk/img/dynamic/4/590x/secondary/5856693.jpg?r=1735554407217"); 
         background-size: cover; 
         background-attachment: fixed; 
     }
     
-    /* 2. Dark Sidebar Fix */
+    /* 2. Sidebar - BetMGM Black & Gold Border */
     [data-testid="stSidebar"], [data-testid="stSidebarContent"] {
         background-color: #111111 !important;
+        border-right: 1px solid #c4b454;
     }
     [data-testid="stSidebar"] h1, [data-testid="stSidebar"] p, [data-testid="stSidebar"] label {
-        color: #ffd700 !important;
+        color: #c4b454 !important;
         font-weight: bold;
     }
     
-    /* 3. Match Card Container */
+    /* 3. Mobile Optimized Match Cards */
     .pl-card { 
-        border: 2px solid #ffd700; 
-        border-radius: 15px; 
-        background: rgba(0,0,0,0.8); 
-        padding: 15px; 
-        margin-bottom: 20px;
-        min-height: 250px; /* Ensures enough space for content */
+        border: 1px solid #c4b454; 
+        border-radius: 12px; 
+        background: rgba(20, 20, 20, 0.95); /* Deep black-gray */
+        padding: 12px; 
+        margin-bottom: 15px;
+        box-shadow: 0 4px 6px rgba(0,0,0,0.3);
     }
     
-    /* 4. Text & Titles */
-    h1, h2, h3, p, label { color: white !important; font-weight: bold; }
+    /* 4. Brand Typography */
+    h1, h2, h3 { 
+        color: #c4b454 !important; 
+        text-transform: uppercase;
+        letter-spacing: 1px;
+    }
+    p, label { 
+        color: #ffffff !important; 
+    }
     
-    /* Custom Styling for Selectbox inside cards */
-    div[data-baseweb="select"] {
-        border-radius: 10px;
+    /* 5. Custom BetMGM Selectbox */
+    div[data-baseweb="select"] > div {
+        background-color: #1c1c1c !important;
+        color: white !important;
+        border: 1px solid #c4b454 !important;
+        height: 45px; /* Slightly taller for easier mobile tapping */
+    }
+
+    /* 6. The "Legendary" Submit Button */
+    div.stButton > button {
+        background: #c4b454 !important;
+        color: #000000 !important;
+        font-weight: 900 !important;
+        border: none !important;
+        width: 100% !important;
+        padding: 12px !important;
+        border-radius: 8px !important;
+        font-size: 1.1rem !important;
     }
     </style>
 """, unsafe_allow_html=True)
+
 
 # --- 5. AUTHENTICATION ---
 st.sidebar.title("🎯 PL 2026 PREDICTOR")
