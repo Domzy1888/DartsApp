@@ -5,16 +5,19 @@ import time
 from datetime import datetime
 import extra_streamlit_components as stx
 
-# 1. Page Configuration
+###############################################################################
+##### SECTION 1: PAGE CONFIGURATION                                       #####
+###############################################################################
 st.set_page_config(page_title="PDC PL Predictor 2026", page_icon="🎯", layout="wide")
 
-# --- 2. COOKIE & SESSION INITIALIZATION ---
 if 'cookie_manager' not in st.session_state:
     st.session_state['cookie_manager'] = stx.CookieManager(key="pdc_pl_v9_final_fix")
 if 'username' not in st.session_state:
     st.session_state['username'] = ""
 
-# --- 3. CONNECTION SETUP ---
+###############################################################################
+##### SECTION 2: CONNECTION SETUP                                         #####
+###############################################################################
 conn = st.connection("gsheets", type=GSheetsConnection)
 URL = st.secrets["connections"]["gsheets"]["spreadsheet"]
 
@@ -26,7 +29,9 @@ def get_data(worksheet):
     except:
         return pd.DataFrame()
 
-# --- 4. STYLING (Professional BetMGM + Flip Clock) ---
+###############################################################################
+##### SECTION 3: STYLING                                                  #####
+###############################################################################
 st.markdown(f"""
     <style>
     .stApp {{ 
@@ -70,7 +75,9 @@ st.markdown(f"""
     </style>
 """, unsafe_allow_html=True)
 
-# --- 5. AUTHENTICATION ---
+###############################################################################
+##### SECTION 4: AUTHENTICATION                                           #####
+###############################################################################
 st.sidebar.title("🎯 PL 2026 PREDICTOR")
 if st.session_state['username'] == "":
     u_attempt = st.sidebar.text_input("Username", key="login_user")
@@ -89,8 +96,10 @@ else:
         st.session_state['username'] = ""
         st.rerun()
 
-# --- 6. RENDER MATCH FUNCTION ---
-def render_match(p1, p2, key, disabled=False):
+###############################################################################
+##### SECTION 5: RENDER MATCH FUNCTION                                    #####
+###############################################################################
+def render_match(p1, p2, key, img_lookup, disabled=False):
     img1 = img_lookup.get(p1, "https://via.placeholder.com/150")
     img2 = img_lookup.get(p2, "https://via.placeholder.com/150")
     st.markdown(f"""
@@ -110,7 +119,9 @@ def render_match(p1, p2, key, disabled=False):
     """, unsafe_allow_html=True)
     return st.selectbox(f"Winner: {p1} vs {p2}", ["Select Winner", p1, p2], key=key, label_visibility="collapsed", disabled=disabled)
 
-# --- 7. MAIN APP LOGIC ---
+###############################################################################
+##### SECTION 6: MAIN APP LOGIC                                           #####
+###############################################################################
 if st.session_state['username'] == "":
     st.markdown("<h1 style='text-align: center;'>Welcome to the 2026 Premier League Predictor</h1>", unsafe_allow_html=True)
     st.info("Please login on the sidebar to enter your predictions.")
@@ -121,11 +132,14 @@ else:
     admin_df.columns = admin_df.columns.str.strip()
     
     if not admin_df.empty:
-        night_data = admin_df.iloc[0]
+        # NEW: Night Selection Dropdown
+        selected_night = st.selectbox("Select Night", admin_df['Night'].unique())
+        night_data = admin_df[admin_df['Night'] == selected_night].iloc[0]
+        
         st.markdown(f"<h1 style='text-align: center;'>📍 {night_data['Venue']}</h1>", unsafe_allow_html=True)
         st.markdown(f"<div class='night-header'>{night_data['Night']}</div>", unsafe_allow_html=True)
 
-        # TIMER & CUTOFF LOGIC (Safely handle missing column)
+        # TIMER & CUTOFF LOGIC
         is_past_cutoff = False
         if 'Cutoff' in admin_df.columns:
             try:
@@ -157,25 +171,32 @@ else:
 
         # BRACKET ENTRY
         st.markdown("### 1️⃣ Quarter Finals")
-        qf1w = render_match(night_data['QF1-P1'], night_data['QF1-P2'], "qf1", disabled=lock_app)
-        qf2w = render_match(night_data['QF2-P1'], night_data['QF2-P2'], "qf2", disabled=lock_app)
-        qf3w = render_match(night_data['QF3-P1'], night_data['QF3-P2'], "qf3", disabled=lock_app)
-        qf4w = render_match(night_data['QF4-P1'], night_data['QF4-P2'], "qf4", disabled=lock_app)
+        # Added night suffix to keys to ensure unique state per night
+        qf1w = render_match(night_data['QF1-P1'], night_data['QF1-P2'], f"qf1_{selected_night}", img_lookup, disabled=lock_app)
+        qf2w = render_match(night_data['QF2-P1'], night_data['QF2-P2'], f"qf2_{selected_night}", img_lookup, disabled=lock_app)
+        qf3w = render_match(night_data['QF3-P1'], night_data['QF3-P2'], f"qf3_{selected_night}", img_lookup, disabled=lock_app)
+        qf4w = render_match(night_data['QF4-P1'], night_data['QF4-P2'], f"qf4_{selected_night}", img_lookup, disabled=lock_app)
 
         if all(x != "Select Winner" for x in [qf1w, qf2w, qf3w, qf4w]):
             st.divider()
             st.markdown("### 2️⃣ Semi Finals")
-            sf1w = render_match(qf1w, qf2w, "sf1", disabled=lock_app)
-            sf2w = render_match(qf3w, qf4w, "sf2", disabled=lock_app)
+            sf1w = render_match(qf1w, qf2w, f"sf1_{selected_night}", img_lookup, disabled=lock_app)
+            sf2w = render_match(qf3w, qf4w, f"sf2_{selected_night}", img_lookup, disabled=lock_app)
 
             if all(x != "Select Winner" for x in [sf1w, sf2w]):
                 st.divider()
                 st.markdown("### 🏆 The Final")
-                finalw = render_match(sf1w, sf2w, "final", disabled=lock_app)
+                finalw = render_match(sf1w, sf2w, f"final_{selected_night}", img_lookup, disabled=lock_app)
 
                 if finalw != "Select Winner" and not lock_app:
                     if st.button("SUBMIT PREDICTIONS"):
-                        new_row = pd.DataFrame([{"Timestamp": datetime.now().strftime("%Y-%m-%d %H:%M"), "Username": st.session_state['username'], "Night": night_data['Night'], "QF1": qf1w, "QF2": qf2w, "QF3": qf3w, "QF4": qf4w, "SF1": sf1w, "SF2": sf2w, "Final": finalw}])
+                        new_row = pd.DataFrame([{
+                            "Timestamp": datetime.now().strftime("%Y-%m-%d %H:%M"), 
+                            "Username": st.session_state['username'], 
+                            "Night": night_data['Night'], 
+                            "QF1": qf1w, "QF2": qf2w, "QF3": qf3w, "QF4": qf4w, 
+                            "SF1": sf1w, "SF2": sf2w, "Final": finalw
+                        }])
                         conn.update(spreadsheet=URL, worksheet="User_Submissions", data=pd.concat([subs_df, new_row], ignore_index=True))
                         st.success("Successfully Submitted!"); time.sleep(1); st.rerun()
     else:
