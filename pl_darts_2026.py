@@ -10,7 +10,7 @@ st.set_page_config(page_title="PDC PL Predictor 2026", page_icon="🎯", layout=
 
 # --- 2. COOKIE & SESSION INITIALIZATION ---
 if 'cookie_manager' not in st.session_state:
-    st.session_state['cookie_manager'] = stx.CookieManager(key="pdc_pl_v7_locked")
+    st.session_state['cookie_manager'] = stx.CookieManager(key="pdc_pl_v8_timer")
 if 'username' not in st.session_state:
     st.session_state['username'] = ""
 
@@ -26,49 +26,60 @@ def get_data(worksheet):
     except:
         return pd.DataFrame()
 
-# --- 4. STYLING (Professional BetMGM + White Player Names) ---
-st.markdown("""
+# --- 4. STYLING (New Background & Countdown Clock) ---
+st.markdown(f"""
     <style>
-    .stApp { 
-        background: linear-gradient(rgba(0,0,0,0.85), rgba(0,0,0,0.85)), 
-                    url("https://cdn.images.express.co.uk/img/dynamic/4/590x/secondary/5856693.jpg?r=1735554407217"); 
-        background-size: cover; background-attachment: fixed; 
-    }
-    [data-testid="stSidebar"], [data-testid="stSidebarContent"] {
+    /* 1. Updated Background Image */
+    .stApp {{ 
+        background: linear-gradient(rgba(0,0,0,0.8), rgba(0,0,0,0.8)), 
+                    url("https://i.postimg.cc/d1kXbbDk/2025PLFinal-Gen-View.jpg"); 
+        background-size: cover; 
+        background-attachment: fixed; 
+    }}
+    
+    [data-testid="stSidebar"], [data-testid="stSidebarContent"] {{
         background-color: #111111 !important; border-right: 1px solid #C4B454;
-    }
-    [data-testid="stSidebar"] h1, [data-testid="stSidebar"] p, [data-testid="stSidebar"] label {
-        color: #C4B454 !important; font-weight: bold;
-    }
-    /* Login button text */
-    [data-testid="stSidebar"] button p {
-        color: #000000 !important; font-weight: 900 !important;
-    }
-    .night-header {
-        text-align: center; color: #C4B454 !important; font-size: 1.5rem;
-        font-weight: bold; text-transform: uppercase; margin-bottom: 20px;
-    }
-    .pl-card { 
+    }}
+    
+    .night-header {{
+        text-align: center; color: #C4B454 !important; font-size: 1.8rem;
+        font-weight: 900; text-transform: uppercase; margin-bottom: 5px;
+    }}
+
+    /* 2. Countdown Clock Styling */
+    .timer-container {{
+        display: flex; justify-content: center; gap: 10px; margin-bottom: 25px;
+    }}
+    .timer-box {{
+        background: #1c1c1c; border: 1px solid #C4B454; border-radius: 8px;
+        padding: 10px; min-width: 60px; text-align: center;
+        box-shadow: inset 0 0 10px rgba(196, 180, 84, 0.2);
+    }}
+    .timer-val {{
+        color: #C4B454; font-size: 1.5rem; font-weight: 900; display: block;
+        line-height: 1; margin-bottom: 2px;
+    }}
+    .timer-label {{
+        color: white; font-size: 0.6rem; text-transform: uppercase; letter-spacing: 1px;
+    }}
+
+    .pl-card {{ 
         border: 1px solid #C4B454; border-radius: 12px; 
         background: rgba(20, 20, 20, 0.95); padding: 15px; margin-bottom: 15px;
-    }
-    .player-name-container {
-        min-height: 3em; display: flex; align-items: center;
-        justify-content: center; margin-top: 8px;
-    }
-    /* Player Names Back to White */
-    .player-name-container p { color: white !important; font-weight: bold; }
+    }}
+    .player-name-container p {{ color: white !important; font-weight: bold; text-align: center; }}
     
-    h1, h2, h3 { color: #C4B454 !important; text-transform: uppercase; letter-spacing: 1px; }
-    div[data-baseweb="select"] > div {
+    h1, h2, h3 {{ color: #C4B454 !important; text-transform: uppercase; letter-spacing: 1px; }}
+    
+    div[data-baseweb="select"] > div {{
         background-color: #1c1c1c !important; color: white !important;
         border: 1px solid #C4B454 !important; border-radius: 8px !important;
-    }
-    div.stButton > button {
+    }}
+    div.stButton > button {{
         background: #C4B454 !important; color: #000000 !important;
         font-weight: 900 !important; border: none !important;
         width: 100% !important; border-radius: 8px !important;
-    }
+    }}
     </style>
 """, unsafe_allow_html=True)
 
@@ -91,7 +102,7 @@ else:
         st.session_state['username'] = ""
         st.rerun()
 
-# --- 6. RENDER MATCH FUNCTION (Updated Select Winner Text) ---
+# --- 6. RENDER MATCH FUNCTION ---
 def render_match(p1, p2, key, disabled=False):
     img1 = img_lookup.get(p1, "https://via.placeholder.com/150")
     img2 = img_lookup.get(p2, "https://via.placeholder.com/150")
@@ -130,24 +141,40 @@ else:
         st.markdown(f"<h1 style='text-align: center;'>📍 {night_data['Venue']}</h1>", unsafe_allow_html=True)
         st.markdown(f"<div class='night-header'>{night_data['Night']}</div>", unsafe_allow_html=True)
 
-        # CHECK FOR PREVIOUS SUBMISSION & CUTOFF
-        subs_df = get_data("User_Submissions")
-        has_submitted = not subs_df[(subs_df['Username'] == st.session_state['username']) & (subs_df['Night'] == night_data['Night'])].empty
-        
-        # Logic for Cutoff Time (Expects a 'Cutoff' column in PL_2026_Admin format 'YYYY-MM-DD HH:MM')
-        is_past_cutoff = False
+        # --- TIMER LOGIC ---
         if 'Cutoff' in admin_df.columns:
             cutoff_val = datetime.strptime(str(night_data['Cutoff']), "%Y-%m-%d %H:%M")
-            if datetime.now() > cutoff_val:
-                is_past_cutoff = True
+            now = datetime.now()
+            diff = cutoff_val - now
+            
+            if diff.total_seconds() > 0:
+                days = diff.days
+                hours, remainder = divmod(diff.seconds, 3600)
+                minutes, _ = divmod(remainder, 60)
+                
+                st.markdown("<p style='text-align:center; color:#C4B454; margin-bottom:5px;'>TIME UNTIL ENTRIES CLOSE</p>", unsafe_allow_html=True)
+                st.markdown(f"""
+                    <div class="timer-container">
+                        <div class="timer-box"><span class="timer-val">{days}</span><span class="timer-label">Days</span></div>
+                        <div class="timer-box"><span class="timer-val">{hours:02d}</span><span class="timer-label">Hrs</span></div>
+                        <div class="timer-box"><span class="timer-val">{minutes:02d}</span><span class="timer-label">Mins</span></div>
+                    </div>
+                """, unsafe_allow_html=True)
+            else:
+                st.markdown("<p style='text-align:center; color:#ff4b4b; font-weight:bold;'>PREDICTIONS CLOSED</p>", unsafe_allow_html=True)
 
+        # CHECK FOR PREVIOUS SUBMISSION
+        subs_df = get_data("User_Submissions")
+        has_submitted = not subs_df[(subs_df['Username'] == st.session_state['username']) & (subs_df['Night'] == night_data['Night'])].empty
+        is_past_cutoff = datetime.now() > datetime.strptime(str(night_data['Cutoff']), "%Y-%m-%d %H:%M")
         lock_app = has_submitted or is_past_cutoff
 
         if has_submitted:
-            st.warning("⚠️ You have already submitted your bracket for this night. Entries are locked.")
+            st.warning("⚠️ Submission received. Your entries are locked.")
         elif is_past_cutoff:
-            st.error("🔒 The cutoff time for this night has passed. Submissions are closed.")
+            st.error("🔒 The cutoff time has passed.")
 
+        # BRACKET
         st.markdown("### 1️⃣ Quarter Finals")
         qf1w = render_match(night_data['QF1-P1'], night_data['QF1-P2'], "qf1", disabled=lock_app)
         qf2w = render_match(night_data['QF2-P1'], night_data['QF2-P2'], "qf2", disabled=lock_app)
@@ -175,8 +202,8 @@ else:
                             "SF1": sf1w, "SF2": sf2w, "Final": finalw
                         }])
                         conn.update(spreadsheet=URL, worksheet="User_Submissions", data=pd.concat([subs_df, new_row], ignore_index=True))
-                        st.success("Predictions Locked In Successfully!")
-                        time.sleep(2)
+                        st.success("Successfully Submitted!")
+                        time.sleep(1)
                         st.rerun()
     else:
-        st.warning("Admin is currently updating the next night's matches.")
+        st.warning("Admin is currently updating the next night.")
