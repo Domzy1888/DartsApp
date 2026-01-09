@@ -49,11 +49,6 @@ st.markdown(f"""
     .betmgm-table th {{ background: #C4B454; color: black; padding: 12px; text-align: left; text-transform: uppercase; font-weight: 900; }}
     .betmgm-table td {{ padding: 12px; border-bottom: 1px solid #333; }}
 
-    .timer-container {{ display: flex; justify-content: center; gap: 10px; margin-bottom: 25px; }}
-    .timer-box {{ background: #1c1c1c; border: 1px solid #C4B454; border-radius: 8px; padding: 10px; min-width: 65px; text-align: center; }}
-    .timer-val {{ color: #C4B454; font-size: 1.5rem; font-weight: 900; display: block; }}
-    .timer-label {{ color: white; font-size: 0.65rem; text-transform: uppercase; }}
-    
     .pl-card {{ border: 1px solid #C4B454; border-radius: 12px; background: rgba(20, 20, 20, 0.95); padding: 15px; margin-bottom: 15px; }}
     .player-name-container p {{ color: white !important; font-weight: bold; text-align: center; }}
     
@@ -110,29 +105,20 @@ def render_match(p1, p2, key, img_lookup, disabled=False):
 ###############################################################################
 ##### SECTION 6: MAIN LOGIC                                               #####
 ###############################################################################
-if st.session_state['username'] == "":
-    st.markdown("<h1 style='text-align: center;'>Welcome to the 2026 Premier League Predictor</h1>", unsafe_allow_html=True)
-else:
-    # Safely load and clean DataFrames
+if st.session_state['username'] != "":
+    # Load data safely
     players_df = get_data("Players")
-    if not players_df.empty:
-        players_df.columns = [str(col).strip() for col in players_df.columns]
+    admin_df = get_data("PL_2026_Admin")
+    subs_df = get_data("User_Submissions")
+    results_df = get_data("PL_Results")
+
+    # Clean headers
+    if not admin_df.empty: admin_df.columns = [str(c).strip() for c in admin_df.columns]
+    if not subs_df.empty: subs_df.columns = [str(c).strip() for c in subs_df.columns]
+    if not results_df.empty: results_df.columns = [str(c).strip() for c in results_df.columns]
     
     img_lookup = dict(zip(players_df['Name'], players_df['Image_URL'])) if not players_df.empty else {}
-    
-    admin_df = get_data("PL_2026_Admin")
-    if not admin_df.empty:
-        admin_df.columns = [str(col).strip() for col in admin_df.columns]
-        
-    subs_df = get_data("User_Submissions")
-    if not subs_df.empty:
-        subs_df.columns = [str(col).strip() for col in subs_df.columns]
 
-    results_df = get_data("PL_Results")
-    if not results_df.empty:
-        results_df.columns = [str(col).strip() for col in results_df.columns]
-
-    # --- TAB: MATCHES ---
     if menu == "Matches":
         if not admin_df.empty:
             selected_night = st.selectbox("Select Night", admin_df['Night'].unique())
@@ -141,71 +127,74 @@ else:
             st.markdown(f"<h1 style='text-align: center;'>📍 {night_data['Venue']}</h1>", unsafe_allow_html=True)
             st.markdown(f"<div class='night-header'>{night_data['Night']}</div>", unsafe_allow_html=True)
 
+            # Check Lock Status
             is_past_cutoff = False
             if 'Cutoff' in admin_df.columns:
                 try:
                     cutoff_val = datetime.strptime(str(night_data['Cutoff']), "%Y-%m-%d %H:%M")
-                    diff = cutoff_val - datetime.now()
-                    if diff.total_seconds() <= 0: is_past_cutoff = True
+                    if cutoff_val < datetime.now(): is_past_cutoff = True
                 except: pass
 
             has_submitted = False
             if not subs_df.empty:
-                has_submitted = not subs_df[(subs_df['Username'] == st.session_state['username']) & (subs_df['Night'] == night_data['Night'])].empty
+                has_submitted = not subs_df[(subs_df['Username'] == st.session_state['username']) & (subs_df['Night'] == selected_night)].empty
             
             lock_app = has_submitted or is_past_cutoff
-
             if has_submitted: st.warning("⚠️ Submission received. Your entries are locked.")
 
+            # BRACKET LOGIC
             st.markdown("### 1️⃣ Quarter Finals")
-            q1 = render_match(night_data['QF1-P1'], night_data['QF1-P2'], f"q1_{selected_night}", img_lookup, lock_app)
-            q2 = render_match(night_data['QF2-P1'], night_data['QF2-P2'], f"q2_{selected_night}", img_lookup, lock_app)
-            q3 = render_match(night_data['QF3-P1'], night_data['QF3-P2'], f"q3_{selected_night}", img_lookup, lock_app)
-            q4 = render_match(night_data['QF4-P1'], night_data['QF4-P2'], f"q4_{selected_night}", img_lookup, lock_app)
+            q1w = render_match(night_data['QF1-P1'], night_data['QF1-P2'], f"q1_{selected_night}", img_lookup, lock_app)
+            q2w = render_match(night_data['QF2-P1'], night_data['QF2-P2'], f"q2_{selected_night}", img_lookup, lock_app)
+            q3w = render_match(night_data['QF3-P1'], night_data['QF3-P2'], f"q3_{selected_night}", img_lookup, lock_app)
+            q4w = render_match(night_data['QF4-P1'], night_data['QF4-P2'], f"q4_{selected_night}", img_lookup, lock_app)
 
-            if all(x != "Select Winner" for x in [q1, q2, q3, q4]):
+            if all(x != "Select Winner" for x in [q1w, q2w, q3w, q4w]):
                 st.divider()
                 st.markdown("### 2️⃣ Semi Finals")
-                s1 = render_match(q1, q2, f"s1_{selected_night}", img_lookup, lock_app)
-                s2 = render_match(q3, q4, f"s2_{selected_night}", img_lookup, lock_app)
+                sf1w = render_match(q1w, q2w, f"sf1_{selected_night}", img_lookup, lock_app)
+                sf2w = render_match(q3w, q4w, f"sf2_{selected_night}", img_lookup, lock_app)
 
-                if all(x != "Select Winner" for x in [s1, s2]):
+                if all(x != "Select Winner" for x in [sf1w, sf2w]):
                     st.divider()
                     st.markdown("### 🏆 The Final")
-                    f1 = render_match(s1, s2, f"f1_{selected_night}", img_lookup, lock_app)
+                    finalw = render_match(sf1w, sf2w, f"fin_{selected_night}", img_lookup, lock_app)
 
-                    if f1 != "Select Winner" and not lock_app:
+                    if finalw != "Select Winner" and not lock_app:
                         if st.button("SUBMIT PREDICTIONS"):
-                            new_row = pd.DataFrame([{"Timestamp": datetime.now().strftime("%Y-%m-%d %H:%M"), "Username": st.session_state['username'], "Night": night_data['Night'], "QF1": q1, "QF2": q2, "QF3": q3, "QF4": q4, "SF1": s1, "SF2": s2, "Final": f1}])
+                            new_row = pd.DataFrame([{
+                                "Timestamp": datetime.now().strftime("%Y-%m-%d %H:%M"),
+                                "Username": st.session_state['username'],
+                                "Night": selected_night,
+                                "QF1": q1w, "QF2": q2w, "QF3": q3w, "QF4": q4w,
+                                "SF1": sf1w, "SF2": sf2w, "Final": finalw
+                            }])
                             conn.update(spreadsheet=URL, worksheet="User_Submissions", data=pd.concat([subs_df, new_row], ignore_index=True))
-                            st.success("Submitted!"); time.sleep(1); st.rerun()
+                            st.success("Successfully Submitted!"); time.sleep(1); st.rerun()
 
-    # --- TAB: LEADERBOARD ---
     elif menu == "Leaderboard":
         st.markdown("<h1 style='text-align: center;'>🏆 Season Standings</h1>", unsafe_allow_html=True)
-        
         if results_df.empty or subs_df.empty:
-            st.info("Leaderboard will update once the first results are in!")
+            st.info("Leaderboard will update once results are posted.")
         else:
             scores = {}
             for _, sub in subs_df.iterrows():
                 user = sub['Username']
-                night = sub['Night']
                 if user not in scores: scores[user] = 0
-                
-                res = results_df[results_df['Night'] == night]
+                res = results_df[results_df['Night'] == sub['Night']]
                 if not res.empty:
                     res = res.iloc[0]
-                    # QF: 2 pts, SF: 3 pts, Final: 5 pts
                     for col in ['QF1', 'QF2', 'QF3', 'QF4']:
                         if sub[col] == res[col]: scores[user] += 2
                     for col in ['SF1', 'SF2']:
                         if sub[col] == res[col]: scores[user] += 3
                     if sub['Final'] == res['Final']: scores[user] += 5
             
-            lb_data = pd.DataFrame(list(scores.items()), columns=['Username', 'Total Points']).sort_values(by='Total Points', ascending=False)
-            
-            html = "<table class='betmgm-table'><tr><th>Rank</th><th>User</th><th>Total Points</th></tr>"
-            for i, row in enumerate(lb_data.itertuples(), 1):
-                html += f"<tr><td>{i}</td><td>{row.Username}</td><td>{row._2}</td></tr>"
+            lb_df = pd.DataFrame(list(scores.items()), columns=['User', 'Points']).sort_values('Points', ascending=False)
+            html = "<table class='betmgm-table'><tr><th>Rank</th><th>User</th><th>Points</th></tr>"
+            for i, row in enumerate(lb_df.itertuples(), 1):
+                html += f"<tr><td>{i}</td><td>{row.User}</td><td>{row.Points}</td></tr>"
             st.markdown(html + "</table>", unsafe_allow_html=True)
+else:
+    st.markdown("<h1 style='text-align: center;'>Welcome to the 2026 Premier League Predictor</h1>", unsafe_allow_html=True)
+    st.info("Please login on the sidebar.")
