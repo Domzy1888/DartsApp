@@ -113,12 +113,24 @@ def render_match(p1, p2, key, img_lookup, disabled=False):
 if st.session_state['username'] == "":
     st.markdown("<h1 style='text-align: center;'>Welcome to the 2026 Premier League Predictor</h1>", unsafe_allow_html=True)
 else:
+    # Safely load and clean DataFrames
     players_df = get_data("Players")
-    img_lookup = dict(zip(players_df['Name'], players_df['Image_URL']))
+    if not players_df.empty:
+        players_df.columns = [str(col).strip() for col in players_df.columns]
+    
+    img_lookup = dict(zip(players_df['Name'], players_df['Image_URL'])) if not players_df.empty else {}
+    
     admin_df = get_data("PL_2026_Admin")
-    admin_df.columns = admin_df.columns.str.strip()
+    if not admin_df.empty:
+        admin_df.columns = [str(col).strip() for col in admin_df.columns]
+        
     subs_df = get_data("User_Submissions")
+    if not subs_df.empty:
+        subs_df.columns = [str(col).strip() for col in subs_df.columns]
+
     results_df = get_data("PL_Results")
+    if not results_df.empty:
+        results_df.columns = [str(col).strip() for col in results_df.columns]
 
     # --- TAB: MATCHES ---
     if menu == "Matches":
@@ -137,7 +149,10 @@ else:
                     if diff.total_seconds() <= 0: is_past_cutoff = True
                 except: pass
 
-            has_submitted = not subs_df[(subs_df['Username'] == st.session_state['username']) & (subs_df['Night'] == night_data['Night'])].empty
+            has_submitted = False
+            if not subs_df.empty:
+                has_submitted = not subs_df[(subs_df['Username'] == st.session_state['username']) & (subs_df['Night'] == night_data['Night'])].empty
+            
             lock_app = has_submitted or is_past_cutoff
 
             if has_submitted: st.warning("⚠️ Submission received. Your entries are locked.")
@@ -173,8 +188,6 @@ else:
             st.info("Leaderboard will update once the first results are in!")
         else:
             scores = {}
-            results_df.columns = results_df.columns.str.strip()
-            
             for _, sub in subs_df.iterrows():
                 user = sub['Username']
                 night = sub['Night']
@@ -183,13 +196,11 @@ else:
                 res = results_df[results_df['Night'] == night]
                 if not res.empty:
                     res = res.iloc[0]
-                    # QF: 2 points each
+                    # QF: 2 pts, SF: 3 pts, Final: 5 pts
                     for col in ['QF1', 'QF2', 'QF3', 'QF4']:
                         if sub[col] == res[col]: scores[user] += 2
-                    # SF: 3 points each
                     for col in ['SF1', 'SF2']:
                         if sub[col] == res[col]: scores[user] += 3
-                    # Final: 5 points
                     if sub['Final'] == res['Final']: scores[user] += 5
             
             lb_data = pd.DataFrame(list(scores.items()), columns=['Username', 'Total Points']).sort_values(by='Total Points', ascending=False)
