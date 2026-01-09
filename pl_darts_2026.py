@@ -10,7 +10,7 @@ st.set_page_config(page_title="PDC PL Predictor 2026", page_icon="🎯", layout=
 
 # --- 2. COOKIE & SESSION INITIALIZATION ---
 if 'cookie_manager' not in st.session_state:
-    st.session_state['cookie_manager'] = stx.CookieManager(key="pdc_pl_v5_final")
+    st.session_state['cookie_manager'] = stx.CookieManager(key="pdc_pl_v6_fixed")
 if 'username' not in st.session_state:
     st.session_state['username'] = ""
 
@@ -29,33 +29,25 @@ def get_data(worksheet):
 # --- 4. STYLING (BetMGM Vegas Gold + Fixed Alignment) ---
 st.markdown("""
     <style>
-    /* Main Background */
     .stApp { 
         background: linear-gradient(rgba(0,0,0,0.85), rgba(0,0,0,0.85)), 
                     url("https://cdn.images.express.co.uk/img/dynamic/4/590x/secondary/5856693.jpg?r=1735554407217"); 
         background-size: cover; 
         background-attachment: fixed; 
     }
-    
-    /* Dark Sidebar & Gold Accents */
     [data-testid="stSidebar"], [data-testid="stSidebarContent"] {
         background-color: #111111 !important;
         border-right: 1px solid #C4B454;
     }
-    
-    /* Sidebar Text & Labels */
     [data-testid="stSidebar"] h1, [data-testid="stSidebar"] p, [data-testid="stSidebar"] label {
         color: #C4B454 !important;
         font-weight: bold;
     }
-
-    /* FIX: Force Login Button Text to BLACK */
+    /* Force Login Button Text to BLACK */
     [data-testid="stSidebar"] button p {
         color: #000000 !important;
         font-weight: 900 !important;
     }
-
-    /* Centered Subheader for Night */
     .night-header {
         text-align: center;
         color: #C4B454 !important;
@@ -64,8 +56,6 @@ st.markdown("""
         text-transform: uppercase;
         margin-bottom: 20px;
     }
-
-    /* Match Card UI */
     .pl-card { 
         border: 1px solid #C4B454; 
         border-radius: 12px; 
@@ -73,8 +63,6 @@ st.markdown("""
         padding: 15px; 
         margin-bottom: 15px;
     }
-    
-    /* FIX: Player Name Box - Forces vertical alignment of images */
     .player-name-container {
         min-height: 3em; 
         display: flex;
@@ -82,18 +70,13 @@ st.markdown("""
         justify-content: center;
         margin-top: 8px;
     }
-
     h1, h2, h3 { color: #C4B454 !important; text-transform: uppercase; letter-spacing: 1px; }
-    
-    /* Selectbox Styling */
     div[data-baseweb="select"] > div {
         background-color: #1c1c1c !important;
         color: white !important;
         border: 1px solid #C4B454 !important;
         border-radius: 8px !important;
     }
-
-    /* BetMGM Gold Buttons */
     div.stButton > button {
         background: #C4B454 !important;
         color: #000000 !important;
@@ -112,7 +95,6 @@ if st.session_state['username'] == "":
     p_attempt = st.sidebar.text_input("Password", type="password", key="login_pass")
     if st.sidebar.button("Login"):
         u_df = get_data("Users")
-        # Ensure password is treated as string for comparison
         match = u_df[(u_df['Username'] == u_attempt) & (u_df['Password'].astype(str) == str(p_attempt))]
         if not match.empty:
             st.session_state['username'] = u_attempt
@@ -125,7 +107,7 @@ else:
         st.session_state['username'] = ""
         st.rerun()
 
-# --- 6. RENDER MATCH FUNCTION ---
+# --- 6. RENDER MATCH FUNCTION (Fixed Triple Quote Error) ---
 def render_match(p1, p2, key):
     img1 = img_lookup.get(p1, "https://via.placeholder.com/150")
     img2 = img_lookup.get(p2, "https://via.placeholder.com/150")
@@ -141,4 +123,60 @@ def render_match(p1, p2, key):
                 </div>
                 <div style="color: #C4B454; font-size: 1.4rem; font-weight: 900; margin-top: 30px;">VS</div>
                 <div style="text-align: center; width: 45%;">
-                    <img src="{img2}" style="width: 100%; max-width: 90px;
+                    <img src="{img2}" style="width: 100%; max-width: 90px; border-radius: 10px;">
+                    <div class="player-name-container">
+                        <p style="font-size: 0.85rem; color: #C4B454 !important; margin:0;">{p2}</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    """, unsafe_allow_html=True)
+    
+    winner = st.selectbox(f"Winner: {p1} vs {p2}", ["Select...", p1, p2], key=key, label_visibility="collapsed")
+    return winner
+
+# --- 7. MAIN APP LOGIC ---
+if st.session_state['username'] == "":
+    st.markdown("<h1 style='text-align: center;'>Welcome to the 2026 Premier League Predictor</h1>", unsafe_allow_html=True)
+    st.info("Please login on the sidebar to enter your predictions.")
+else:
+    players_df = get_data("Players")
+    img_lookup = dict(zip(players_df['Name'], players_df['Image_URL']))
+    admin_df = get_data("PL_2026_Admin")
+    admin_df.columns = admin_df.columns.str.strip()
+    
+    if not admin_df.empty:
+        night_data = admin_df.iloc[0]
+        st.markdown(f"<h1 style='text-align: center;'>📍 {night_data['Venue']}</h1>", unsafe_allow_html=True)
+        st.markdown(f"<div class='night-header'>{night_data['Night']}</div>", unsafe_allow_html=True)
+
+        st.markdown("### 1️⃣ Quarter Finals")
+        qf1w = render_match(night_data['QF1-P1'], night_data['QF1-P2'], "qf1")
+        qf2w = render_match(night_data['QF2-P1'], night_data['QF2-P2'], "qf2")
+        qf3w = render_match(night_data['QF3-P1'], night_data['QF3-P2'], "qf3")
+        qf4w = render_match(night_data['QF4-P1'], night_data['QF4-P2'], "qf4")
+
+        if all(x != "Select..." for x in [qf1w, qf2w, qf3w, qf4w]):
+            st.divider()
+            st.markdown("### 2️⃣ Semi Finals")
+            sf1w = render_match(qf1w, qf2w, "sf1")
+            sf2w = render_match(qf3w, qf4w, "sf2")
+
+            if all(x != "Select..." for x in [sf1w, sf2w]):
+                st.divider()
+                st.markdown("### 🏆 The Final")
+                finalw = render_match(sf1w, sf2w, "final")
+
+                if finalw != "Select...":
+                    if st.button("🚀 SUBMIT PREDICTIONS"):
+                        new_row = pd.DataFrame([{
+                            "Timestamp": datetime.now().strftime("%Y-%m-%d %H:%M"),
+                            "Username": st.session_state['username'],
+                            "Night": night_data['Night'],
+                            "QF1": qf1w, "QF2": qf2w, "QF3": qf3w, "QF4": qf4w,
+                            "SF1": sf1w, "SF2": sf2w, "Final": finalw
+                        }])
+                        conn.update(spreadsheet=URL, worksheet="User_Submissions", data=pd.concat([get_data("User_Submissions"), new_row], ignore_index=True))
+                        st.balloons(); st.success("Locked in!"); time.sleep(2); st.rerun()
+    else:
+        st.warning("Admin is currently updating the next night's matches.")
