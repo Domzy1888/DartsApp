@@ -5,14 +5,17 @@ import time
 from datetime import datetime
 import extra_streamlit_components as stx
 
-# 1. Page Configuration
+###############################################################################
+##### SECTION 1: PAGE CONFIGURATION                                       #####
+###############################################################################
 st.set_page_config(page_title="PDC PL Predictor 2026", page_icon="🎯", layout="wide")
 
-# --- 2. SESSION INITIALIZATION ---
 if 'username' not in st.session_state:
     st.session_state['username'] = ""
 
-# --- 3. CONNECTION SETUP ---
+###############################################################################
+##### SECTION 2: CONNECTION & DATA FETCHING                               #####
+###############################################################################
 conn = st.connection("gsheets", type=GSheetsConnection)
 URL = st.secrets["connections"]["gsheets"]["spreadsheet"]
 
@@ -24,7 +27,9 @@ def get_data(worksheet):
     except Exception as e:
         return pd.DataFrame()
 
-# --- 4. STYLING (BetMGM Theme + Flip Clock) ---
+###############################################################################
+##### SECTION 3: STYLING & CUSTOM CSS                                     #####
+###############################################################################
 st.markdown(f"""
     <style>
     .stApp {{ 
@@ -47,7 +52,6 @@ st.markdown(f"""
     .player-name-container p {{ color: white !important; font-weight: bold; text-align: center; }}
     h1, h2, h3 {{ color: #C4B454 !important; text-transform: uppercase; }}
     
-    /* Leaderboard Style */
     .betmgm-table {{ width: 100%; border-collapse: collapse; background: rgba(20,20,20,0.9); border-radius: 10px; overflow: hidden; color: white; }}
     .betmgm-table th {{ background: #C4B454; color: black; padding: 12px; text-align: left; text-transform: uppercase; font-weight: 900; }}
     .betmgm-table td {{ padding: 12px; border-bottom: 1px solid #333; }}
@@ -57,10 +61,14 @@ st.markdown(f"""
     </style>
 """, unsafe_allow_html=True)
 
-# --- 5. RENDER MATCH FUNCTION ---
+###############################################################################
+##### SECTION 4: MATCH RENDERER FUNCTION                                  #####
+###############################################################################
 def render_match(p1, p2, key, img_lookup, disabled=False):
+    # Safety Check: Use .get() to prevent KeyError if dictionary is rebuilding
     img1 = img_lookup.get(p1, "https://via.placeholder.com/150")
     img2 = img_lookup.get(p2, "https://via.placeholder.com/150")
+    
     st.markdown(f"""
         <div class="pl-card">
             <div style="display: flex; justify-content: space-around; align-items: flex-start; margin-bottom: 15px;">
@@ -78,7 +86,9 @@ def render_match(p1, p2, key, img_lookup, disabled=False):
     """, unsafe_allow_html=True)
     return st.selectbox(f"Winner: {p1} vs {p2}", ["Select Winner", p1, p2], key=key, label_visibility="collapsed", disabled=disabled)
 
-# --- 6. SIDEBAR NAVIGATION ---
+###############################################################################
+##### SECTION 5: SIDEBAR & NAVIGATION                                     #####
+###############################################################################
 st.sidebar.title("🎯 PL 2026 PREDICTOR")
 if st.session_state['username'] == "":
     u_attempt = st.sidebar.text_input("Username")
@@ -98,7 +108,9 @@ else:
         st.session_state['username'] = ""
         st.rerun()
 
-# --- 7. MAIN LOGIC ---
+###############################################################################
+##### SECTION 6: CORE APP LOGIC                                           #####
+###############################################################################
 if st.session_state['username'] == "":
     st.markdown("<h1 style='text-align: center;'>Welcome to the 2026 Premier League Predictor</h1>", unsafe_allow_html=True)
     st.info("Please login on the sidebar to enter your predictions.")
@@ -108,19 +120,23 @@ else:
     admin_df = get_data("PL_2026_Admin")
     subs_df = get_data("User_Submissions")
 
-    # 2. Build Image Lookup with Safety Check
+    # 2. Build Image Lookup with Safety Fixes
     img_lookup = {}
-    if not players_df.empty and 'Name' in players_df.columns and 'Image_URL' in players_df.columns:
-        img_lookup = dict(zip(players_df['Name'], players_df['Image_URL']))
-    else:
-        st.error("⚠️ Data Error: 'Players' sheet is missing 'Name' or 'Image_URL' columns.")
+    if not players_df.empty:
+        # Strip whitespace from columns to prevent KeyErrors
+        players_df.columns = players_df.columns.str.strip()
+        if 'Name' in players_df.columns and 'Image_URL' in players_df.columns:
+            img_lookup = dict(zip(players_df['Name'], players_df['Image_URL']))
+        else:
+            st.error("⚠️ Data Error: 'Players' sheet is missing 'Name' or 'Image_URL' columns.")
 
-    # 3. Clean Admin Columns (Remove accidental spaces)
+    # 3. Clean Admin Columns
     if not admin_df.empty:
         admin_df.columns = admin_df.columns.str.strip()
 
-
-    # --- PAGE: MATCHES ---
+    ###########################################################################
+    ##### SECTION 7: MATCHES PAGE                                         #####
+    ###########################################################################
     if menu == "Matches":
         if not admin_df.empty:
             night_choice = st.selectbox("Select Night", admin_df['Night'].unique())
@@ -164,14 +180,14 @@ else:
             qf3 = render_match(night_data['QF3-P1'], night_data['QF3-P2'], f"qf3_{night_choice}", img_lookup, is_locked)
             qf4 = render_match(night_data['QF4-P1'], night_data['QF4-P2'], f"qf4_{night_choice}", img_lookup, is_locked)
 
-            # SEMI FINALS (Show when all QFs selected)
+            # SEMI FINALS
             if all(x != "Select Winner" for x in [qf1, qf2, qf3, qf4]):
                 st.divider()
                 st.markdown("### 2️⃣ Semi Finals")
                 sf1 = render_match(qf1, qf2, f"sf1_{night_choice}", img_lookup, is_locked)
                 sf2 = render_match(qf3, qf4, f"sf2_{night_choice}", img_lookup, is_locked)
 
-                # FINAL (Show when all SFs selected)
+                # FINAL
                 if all(x != "Select Winner" for x in [sf1, sf2]):
                     st.divider()
                     st.markdown("### 🏆 The Final")
@@ -192,7 +208,9 @@ else:
         else:
             st.warning("Admin needs to populate the PL_2026_Admin sheet.")
 
-    # --- PAGE: LEADERBOARD ---
+    ###########################################################################
+    ##### SECTION 8: LEADERBOARD PAGE                                     #####
+    ###########################################################################
     elif menu == "Leaderboard":
         st.title("🏆 Season Standings")
         lb_df = get_data("PL_Leaderboard")
@@ -205,7 +223,9 @@ else:
         else:
             st.info("Leaderboard will populate once results are processed.")
 
-    # --- PAGE: RIVAL WATCH ---
+    ###########################################################################
+    ##### SECTION 9: RIVAL WATCH                                          #####
+    ###########################################################################
     elif menu == "Rival Watch":
         st.title("👀 Rival Watch")
         if not admin_df.empty:
@@ -219,12 +239,13 @@ else:
             else:
                 st.warning("You must submit your own predictions for this night before viewing rivals.")
 
-    # --- PAGE: HIGHLIGHTS ---
+    ###########################################################################
+    ##### SECTION 10: HIGHLIGHTS & ADMIN                                  #####
+    ###########################################################################
     elif menu == "Highlights":
         st.title("📺 PDC Highlights")
         st.video("https://www.youtube.com/watch?v=F5u_6Yp-H-U")
 
-    # --- PAGE: ADMIN ---
     elif menu == "Admin":
         if st.session_state['username'].lower() == "admin":
             st.subheader("⚙️ Scoring Engine")
