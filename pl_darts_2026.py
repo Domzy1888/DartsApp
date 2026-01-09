@@ -3,7 +3,6 @@ from streamlit_gsheets import GSheetsConnection
 import pandas as pd
 import time
 from datetime import datetime
-import extra_streamlit_components as stx
 from streamlit_option_menu import option_menu
 
 ###############################################################################
@@ -20,46 +19,44 @@ if 'username' not in st.session_state:
 conn = st.connection("gsheets", type=GSheetsConnection)
 URL = st.secrets["connections"]["gsheets"]["spreadsheet"]
 
-@st.cache_data(ttl=5)
+@st.cache_data(ttl=2)
 def get_data(worksheet):
     try:
         df = conn.read(spreadsheet=URL, worksheet=worksheet, ttl=0)
         return df.dropna(how='all')
-    except:
-        return pd.DataFrame()
+    except: return pd.DataFrame()
 
 ###############################################################################
-##### SECTION 3: STYLING                                                  #####
+##### SECTION 3: STYLING (The CSS Fixes)                                  #####
 ###############################################################################
-st.markdown(f"""
+st.markdown("""
     <style>
-    .stApp {{ 
+    .stApp { 
         background: linear-gradient(rgba(0,0,0,0.8), rgba(0,0,0,0.8)), 
                     url("https://i.postimg.cc/d1kXbbDk/2025PLFinal-Gen-View.jpg"); 
         background-size: cover; background-attachment: fixed; 
-    }}
-    [data-testid="stSidebar"], [data-testid="stSidebarContent"] {{
+    }
+    [data-testid="stSidebar"], [data-testid="stSidebarContent"] {
         background-color: #111111 !important; border-right: 1px solid #C4B454;
-    }}
+    }
     
-    h1, h2, h3 {{ color: #C4B454 !important; text-transform: uppercase; font-weight: 900 !important; }}
-    .stMarkdown p, .stText p, [data-testid="stWidgetLabel"] p {{ color: white !important; }}
-    .night-header {{ text-align: center; color: #C4B454 !important; font-size: 1.8rem; font-weight: 900; text-transform: uppercase; }}
-    
-    .betmgm-table {{ width: 100%; border-collapse: collapse; background: rgba(20,20,20,0.9); border-radius: 10px; overflow: hidden; color: white; }}
-    .betmgm-table th {{ background: #C4B454; color: black; padding: 12px; text-align: left; text-transform: uppercase; font-weight: 900; }}
-    .betmgm-table td {{ padding: 12px; border-bottom: 1px solid #333; }}
+    /* REMOVE LIGHT BOX & BORDER FROM OPTION MENU */
+    div[data-component-name="st_option_menu"] > div {
+        background-color: transparent !important;
+        border: none !important;
+        box-shadow: none !important;
+    }
 
-    .timer-container {{ display: flex; justify-content: center; gap: 10px; margin-bottom: 25px; }}
-    .timer-box {{ background: #1c1c1c; border: 1px solid #C4B454; border-radius: 8px; padding: 10px; min-width: 65px; text-align: center; }}
-    .timer-val {{ color: #C4B454; font-size: 1.5rem; font-weight: 900; display: block; }}
-    .timer-label {{ color: white; font-size: 0.65rem; text-transform: uppercase; }}
+    h1, h2, h3 { color: #C4B454 !important; text-transform: uppercase; font-weight: 900 !important; }
+    .stMarkdown p, .stText p, [data-testid="stWidgetLabel"] p { color: white !important; }
     
-    .pl-card {{ border: 1px solid #C4B454; border-radius: 12px; background: rgba(20, 20, 20, 0.95); padding: 15px; margin-bottom: 15px; }}
-    .player-name-container p {{ color: white !important; font-weight: bold; text-align: center; }}
+    .betmgm-table { width: 100%; border-collapse: collapse; background: rgba(20,20,20,0.9); border-radius: 10px; overflow: hidden; color: white; }
+    .betmgm-table th { background: #C4B454; color: black; padding: 12px; text-align: left; text-transform: uppercase; font-weight: 900; }
+    .betmgm-table td { padding: 12px; border-bottom: 1px solid #333; }
     
-    div[data-baseweb="select"] > div {{ background-color: #1c1c1c !important; color: white !important; border: 1px solid #C4B454 !important; }}
-    div.stButton > button {{ background: #C4B454 !important; color: #000000 !important; font-weight: 900 !important; border: none !important; width: 100% !important; }}
+    .pl-card { border: 1px solid #C4B454; border-radius: 12px; background: rgba(20, 20, 20, 0.95); padding: 15px; margin-bottom: 15px; }
+    div[data-baseweb="select"] > div { background-color: #1c1c1c !important; color: white !important; border: 1px solid #C4B454 !important; }
+    div.stButton > button { background: #C4B454 !important; color: #000000 !important; font-weight: 900 !important; border: none !important; width: 100% !important; }
     </style>
 """, unsafe_allow_html=True)
 
@@ -78,18 +75,20 @@ with st.sidebar:
             if not match.empty:
                 st.session_state['username'] = u_attempt
                 st.rerun()
-            else:
-                st.error("Invalid Credentials")
+            else: st.error("Invalid Credentials")
         selected_page = "Matches"
     else:
-        st.write(f"User: **{st.session_state['username']}**")
+        st.write(f"Logged in as: **{st.session_state['username']}**")
         
-        # Pill Menu inside Sidebar - No Gold Border
+        # MENU LOGIC: Show Admin tab only if username is 'admin'
+        menu_options = ["Matches", "Leaderboard"]
+        if st.session_state['username'].lower() == "admin":
+            menu_options.append("Admin")
+            
         selected_page = option_menu(
             menu_title=None, 
-            options=["Matches", "Leaderboard"],
+            options=menu_options,
             menu_icon="none",
-            icons=None, 
             default_index=0,
             styles={
                 "container": {"background-color": "transparent", "padding": "0px"},
@@ -114,12 +113,12 @@ def render_match(p1, p2, key, img_lookup, disabled=False):
             <div style="display: flex; justify-content: space-around; align-items: flex-start; margin-bottom: 15px;">
                 <div style="text-align: center; width: 45%;">
                     <img src="{img1}" style="width: 100%; max-width: 90px; border-radius: 10px;">
-                    <div class="player-name-container"><p style="font-size: 0.85rem; margin:0;">{p1}</p></div>
+                    <p style="font-size: 0.85rem; margin:0; font-weight:bold; color:white;">{p1}</p>
                 </div>
                 <div style="color: #C4B454; font-size: 1.4rem; font-weight: 900; margin-top: 30px;">VS</div>
                 <div style="text-align: center; width: 45%;">
                     <img src="{img2}" style="width: 100%; max-width: 90px; border-radius: 10px;">
-                    <div class="player-name-container"><p style="font-size: 0.85rem; margin:0;">{p2}</p></div>
+                    <p style="font-size: 0.85rem; margin:0; font-weight:bold; color:white;">{p2}</p>
                 </div>
             </div>
         </div>
@@ -135,89 +134,86 @@ else:
     players_df = get_data("Players")
     img_lookup = dict(zip(players_df['Name'], players_df['Image_URL'])) if not players_df.empty else {}
     admin_df = get_data("PL_2026_Admin")
-    admin_df.columns = [str(col).strip() for col in admin_df.columns]
 
     if selected_page == "Matches":
         if not admin_df.empty:
             selected_night = st.selectbox("Select Night", admin_df['Night'].unique())
             night_data = admin_df[admin_df['Night'] == selected_night].iloc[0]
-            
             st.markdown(f"<h1 style='text-align: center;'>📍 {night_data['Venue']}</h1>", unsafe_allow_html=True)
-            st.markdown(f"<div class='night-header'>{night_data['Night']}</div>", unsafe_allow_html=True)
-
-            is_past_cutoff = False
-            if 'Cutoff' in admin_df.columns:
-                try:
-                    cutoff_val = datetime.strptime(str(night_data['Cutoff']), "%Y-%m-%d %H:%M")
-                    if cutoff_val < datetime.now(): is_past_cutoff = True
-                except: pass
-
+            
             subs_df = get_data("User_Submissions")
             has_submitted = not subs_df[(subs_df['Username'] == st.session_state['username']) & (subs_df['Night'] == selected_night)].empty
-            lock_app = has_submitted or is_past_cutoff
-
-            if has_submitted: st.warning("⚠️ Submission received. Your entries are locked.")
 
             st.markdown("### 1️⃣ Quarter Finals")
-            qf1w = render_match(night_data['QF1-P1'], night_data['QF1-P2'], f"qf1_{selected_night}", img_lookup, disabled=lock_app)
-            qf2w = render_match(night_data['QF2-P1'], night_data['QF2-P2'], f"qf2_{selected_night}", img_lookup, disabled=lock_app)
-            qf3w = render_match(night_data['QF3-P1'], night_data['QF3-P2'], f"qf3_{selected_night}", img_lookup, disabled=lock_app)
-            qf4w = render_match(night_data['QF4-P1'], night_data['QF4-P2'], f"qf4_{selected_night}", img_lookup, disabled=lock_app)
+            q1 = render_match(night_data['QF1-P1'], night_data['QF1-P2'], "q1", img_lookup, has_submitted)
+            q2 = render_match(night_data['QF2-P1'], night_data['QF2-P2'], "q2", img_lookup, has_submitted)
+            q3 = render_match(night_data['QF3-P1'], night_data['QF3-P2'], "q3", img_lookup, has_submitted)
+            q4 = render_match(night_data['QF4-P1'], night_data['QF4-P2'], "q4", img_lookup, has_submitted)
 
-            if all(x != "Select Winner" for x in [qf1w, qf2w, qf3w, qf4w]):
+            if all(x != "Select Winner" for x in [q1, q2, q3, q4]):
                 st.divider()
                 st.markdown("### 2️⃣ Semi Finals")
-                sf1w = render_match(qf1w, qf2w, f"sf1_{selected_night}", img_lookup, disabled=lock_app)
-                sf2w = render_match(qf3w, qf4w, f"sf2_{selected_night}", img_lookup, disabled=lock_app)
+                s1 = render_match(q1, q2, "s1", img_lookup, has_submitted)
+                s2 = render_match(q3, q4, "s2", img_lookup, has_submitted)
 
-                if all(x != "Select Winner" for x in [sf1w, sf2w]):
+                if all(x != "Select Winner" for x in [s1, s2]):
                     st.divider()
                     st.markdown("### 🏆 The Final")
-                    finalw = render_match(sf1w, sf2w, f"final_{selected_night}", img_lookup, disabled=lock_app)
+                    fin = render_match(s1, s2, "fin", img_lookup, has_submitted)
 
-                    if finalw != "Select Winner" and not lock_app:
+                    if fin != "Select Winner" and not has_submitted:
                         if st.button("SUBMIT PREDICTIONS"):
-                            new_row = pd.DataFrame([{
-                                "Timestamp": datetime.now().strftime("%Y-%m-%d %H:%M"), 
-                                "Username": st.session_state['username'], 
-                                "Night": night_data['Night'], 
-                                "QF1": qf1w, "QF2": qf2w, "QF3": qf3w, "QF4": qf4w, 
-                                "SF1": sf1w, "SF2": sf2w, "Final": finalw
-                            }])
-                            conn.update(spreadsheet=URL, worksheet="User_Submissions", data=pd.concat([subs_df, new_row], ignore_index=True))
-                            st.success("Successfully Submitted!"); time.sleep(1); st.rerun()
+                            new_row = pd.DataFrame([{"Timestamp": datetime.now(), "Username": st.session_state['username'], "Night": selected_night, "QF1": q1, "QF2": q2, "QF3": q3, "QF4": q4, "SF1": s1, "SF2": s2, "Final": fin}])
+                            conn.update(spreadsheet=URL, worksheet="User_Submissions", data=pd.concat([subs_df, new_row]))
+                            st.success("Submitted!"); time.sleep(1); st.rerun()
 
     elif selected_page == "Leaderboard":
-        st.markdown("<h1 style='text-align: center;'>🏆 Season Standings</h1>", unsafe_allow_html=True)
-        results_df = get_data("PL_Results")
-        subs_df = get_data("User_Submissions")
-
-        if results_df.empty or subs_df.empty:
-            st.info("Standings will appear once the first results are in.")
-        else:
-            scores = {}
-            # Sanitize Column Headers
-            results_df.columns = [str(c).strip() for c in results_df.columns]
-            subs_df.columns = [str(c).strip() for c in subs_df.columns]
-            
-            for _, sub in subs_df.iterrows():
-                user = sub['Username']
-                if user not in scores: scores[user] = 0
-                
-                # Match result for the night
-                res = results_df[results_df['Night'].astype(str).str.strip() == str(sub['Night']).strip()]
-                
-                if not res.empty:
-                    res = res.iloc[0]
-                    # DATA SANITIZER COMPARISON (Strip spaces and force string)
-                    for col in ['QF1', 'QF2', 'QF3', 'QF4']:
-                        if str(sub[col]).strip() == str(res[col]).strip(): scores[user] += 2
-                    for col in ['SF1', 'SF2']:
-                        if str(sub[col]).strip() == str(res[col]).strip(): scores[user] += 3
-                    if str(sub['Final']).strip() == str(res['Final']).strip(): scores[user] += 5
-            
-            lb_data = pd.DataFrame(list(scores.items()), columns=['User', 'Points']).sort_values('Points', ascending=False)
-            html = "<table class='betmgm-table'><tr><th>Rank</th><th>User</th><th>Points</th></tr>"
-            for i, row in enumerate(lb_data.itertuples(), 1):
-                html += f"<tr><td>{i}</td><td>{row.User}</td><td>{row.Points}</td></tr>"
+        st.title("🏆 Season Standings")
+        lb_df = get_data("PL_Leaderboard")
+        if not lb_df.empty:
+            lb_df = lb_df.sort_values(by="Total", ascending=False)
+            html = "<table class='betmgm-table'><tr><th>Rank</th><th>User</th><th>Total</th></tr>"
+            for i, row in enumerate(lb_df.itertuples(), 1):
+                html += f"<tr><td>{i}</td><td>{row.Username}</td><td>{row.Total}</td></tr>"
             st.markdown(html + "</table>", unsafe_allow_html=True)
+
+    elif selected_page == "Admin":
+        st.title("⚙️ Result Manager")
+        res_df = get_data("PL_Results")
+        night_to_edit = st.selectbox("Update Night Results", admin_df['Night'].unique())
+        n_data = admin_df[admin_df['Night'] == night_to_edit].iloc[0]
+        
+        with st.form("admin_form"):
+            c1, c2 = st.columns(2)
+            aq1 = c1.selectbox("QF1 Winner", [n_data['QF1-P1'], n_data['QF1-P2']])
+            aq2 = c2.selectbox("QF2 Winner", [n_data['QF2-P1'], n_data['QF2-P2']])
+            aq3 = c1.selectbox("QF3 Winner", [n_data['QF3-P1'], n_data['QF3-P2']])
+            aq4 = c2.selectbox("QF4 Winner", [n_data['QF4-P1'], n_data['QF4-P2']])
+            as1 = c1.selectbox("SF1 Winner", [aq1, aq2])
+            as2 = c2.selectbox("SF2 Winner", [aq3, aq4])
+            afn = st.selectbox("Overall Winner", [as1, as2])
+            
+            if st.form_submit_button("Save Winners"):
+                new_res = pd.DataFrame([{"Night": night_to_edit, "QF1": aq1, "QF2": aq2, "QF3": aq3, "QF4": aq4, "SF1": as1, "SF2": as2, "Final": afn}])
+                conn.update(spreadsheet=URL, worksheet="PL_Results", data=pd.concat([res_df[res_df['Night'] != night_to_edit], new_res]))
+                st.success("Results Updated!")
+
+        if st.button("🔄 Recalculate Leaderboard"):
+            subs = get_data("User_Submissions")
+            results = get_data("PL_Results")
+            scores = {}
+            for _, s in subs.iterrows():
+                u = s['Username']
+                if u not in scores: scores[u] = 0
+                r = results[results['Night'] == s['Night']]
+                if not r.empty:
+                    r = r.iloc[0]
+                    for col in ['QF1','QF2','QF3','QF4']: 
+                        if str(s[col]).strip() == str(r[col]).strip(): scores[u] += 2
+                    for col in ['SF1','SF2']: 
+                        if str(s[col]).strip() == str(r[col]).strip(): scores[u] += 3
+                    if str(s['Final']).strip() == str(r['Final']).strip(): scores[u] += 5
+            
+            new_lb = pd.DataFrame(list(scores.items()), columns=['Username', 'Total'])
+            conn.update(spreadsheet=URL, worksheet="PL_Leaderboard", data=new_lb)
+            st.success("Leaderboard Synced!")
