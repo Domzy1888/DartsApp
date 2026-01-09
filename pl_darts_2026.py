@@ -62,24 +62,30 @@ st.markdown(f"""
 """, unsafe_allow_html=True)
 
 ###############################################################################
-##### SECTION 4: MATCH RENDERER FUNCTION                                  #####
+##### SECTION 4: MATCH RENDERER FUNCTION (STABILITY PATCH)                #####
 ###############################################################################
 def render_match(p1, p2, key, img_lookup, disabled=False):
-    # Safety Check: Use .get() to prevent KeyError if dictionary is rebuilding
-    img1 = img_lookup.get(p1, "https://via.placeholder.com/150")
-    img2 = img_lookup.get(p2, "https://via.placeholder.com/150")
+    # Default placeholders
+    img1 = "https://via.placeholder.com/150"
+    img2 = "https://via.placeholder.com/150"
+    
+    # Safety: Only look up images if the player selection is valid
+    if p1 and p1 != "Select Winner":
+        img1 = img_lookup.get(p1, img1)
+    if p2 and p2 != "Select Winner":
+        img2 = img_lookup.get(p2, img2)
     
     st.markdown(f"""
         <div class="pl-card">
             <div style="display: flex; justify-content: space-around; align-items: flex-start; margin-bottom: 15px;">
                 <div style="text-align: center; width: 45%;">
                     <img src="{img1}" style="width: 100%; max-width: 90px; border-radius: 10px;">
-                    <div class="player-name-container"><p style="font-size: 0.85rem; margin:0;">{p1}</p></div>
+                    <div class="player-name-container"><p style="font-size: 0.85rem; margin:0;">{p1 if p1 else ""}</p></div>
                 </div>
                 <div style="color: #C4B454; font-size: 1.4rem; font-weight: 900; margin-top: 30px;">VS</div>
                 <div style="text-align: center; width: 45%;">
                     <img src="{img2}" style="width: 100%; max-width: 90px; border-radius: 10px;">
-                    <div class="player-name-container"><p style="font-size: 0.85rem; margin:0;">{p2}</p></div>
+                    <div class="player-name-container"><p style="font-size: 0.85rem; margin:0;">{p2 if p2 else ""}</p></div>
                 </div>
             </div>
         </div>
@@ -109,33 +115,29 @@ else:
         st.rerun()
 
 ###############################################################################
-##### SECTION 6: CORE APP LOGIC                                           #####
+##### SECTION 6: DATA LOADING & IMAGE LOOKUP                              #####
 ###############################################################################
 if st.session_state['username'] == "":
     st.markdown("<h1 style='text-align: center;'>Welcome to the 2026 Premier League Predictor</h1>", unsafe_allow_html=True)
     st.info("Please login on the sidebar to enter your predictions.")
 else:
-    # 1. Load Data Safely
     players_df = get_data("Players")
     admin_df = get_data("PL_2026_Admin")
     subs_df = get_data("User_Submissions")
 
-    # 2. Build Image Lookup with Safety Fixes
     img_lookup = {}
     if not players_df.empty:
-        # Strip whitespace from columns to prevent KeyErrors
         players_df.columns = players_df.columns.str.strip()
         if 'Name' in players_df.columns and 'Image_URL' in players_df.columns:
             img_lookup = dict(zip(players_df['Name'], players_df['Image_URL']))
         else:
-            st.error("⚠️ Data Error: 'Players' sheet is missing 'Name' or 'Image_URL' columns.")
+            st.warning("⚠️ Waiting for player data to sync...")
 
-    # 3. Clean Admin Columns
     if not admin_df.empty:
         admin_df.columns = admin_df.columns.str.strip()
 
     ###########################################################################
-    ##### SECTION 7: MATCHES PAGE                                         #####
+    ##### SECTION 7: MATCHES PAGE LOGIC                                   #####
     ###########################################################################
     if menu == "Matches":
         if not admin_df.empty:
@@ -145,7 +147,7 @@ else:
             st.markdown(f"<h1 style='text-align: center;'>📍 {night_data['Venue']}</h1>", unsafe_allow_html=True)
             st.markdown(f"<div class='night-header'>{night_data['Night']}</div>", unsafe_allow_html=True)
 
-            # TIMER LOGIC
+            # Timer Logic
             is_locked = False
             if 'Cutoff' in admin_df.columns:
                 try:
@@ -165,29 +167,28 @@ else:
                         is_locked = True
                         st.error("🔒 Submissions closed for this night.")
                 except:
-                    st.error("Check 'Cutoff' column format in Sheets (YYYY-MM-DD HH:MM)")
+                    st.error("Check 'Cutoff' column format in Sheets.")
 
-            # SUBMISSION CHECK
             user_sub = subs_df[(subs_df['Username'] == st.session_state['username']) & (subs_df['Night'] == night_choice)]
             if not user_sub.empty: 
                 st.warning("✅ Predictions submitted for this night.")
                 is_locked = True
 
-            # QUARTER FINALS
+            # QF
             st.markdown("### 1️⃣ Quarter Finals")
             qf1 = render_match(night_data['QF1-P1'], night_data['QF1-P2'], f"qf1_{night_choice}", img_lookup, is_locked)
             qf2 = render_match(night_data['QF2-P1'], night_data['QF2-P2'], f"qf2_{night_choice}", img_lookup, is_locked)
             qf3 = render_match(night_data['QF3-P1'], night_data['QF3-P2'], f"qf3_{night_choice}", img_lookup, is_locked)
             qf4 = render_match(night_data['QF4-P1'], night_data['QF4-P2'], f"qf4_{night_choice}", img_lookup, is_locked)
 
-            # SEMI FINALS
+            # SF
             if all(x != "Select Winner" for x in [qf1, qf2, qf3, qf4]):
                 st.divider()
                 st.markdown("### 2️⃣ Semi Finals")
                 sf1 = render_match(qf1, qf2, f"sf1_{night_choice}", img_lookup, is_locked)
                 sf2 = render_match(qf3, qf4, f"sf2_{night_choice}", img_lookup, is_locked)
 
-                # FINAL
+                # Final
                 if all(x != "Select Winner" for x in [sf1, sf2]):
                     st.divider()
                     st.markdown("### 🏆 The Final")
@@ -209,7 +210,7 @@ else:
             st.warning("Admin needs to populate the PL_2026_Admin sheet.")
 
     ###########################################################################
-    ##### SECTION 8: LEADERBOARD PAGE                                     #####
+    ##### SECTION 8: LEADERBOARD, RIVAL WATCH & HIGHLIGHTS                #####
     ###########################################################################
     elif menu == "Leaderboard":
         st.title("🏆 Season Standings")
@@ -220,28 +221,17 @@ else:
             for i, row in enumerate(lb_df.itertuples(), 1):
                 html += f"<tr><td>{i}</td><td>{row.Username}</td><td>{row.Total}</td></tr>"
             st.markdown(html + "</table>", unsafe_allow_html=True)
-        else:
-            st.info("Leaderboard will populate once results are processed.")
 
-    ###########################################################################
-    ##### SECTION 9: RIVAL WATCH                                          #####
-    ###########################################################################
     elif menu == "Rival Watch":
         st.title("👀 Rival Watch")
         if not admin_df.empty:
             watch_night = st.selectbox("Select Night to View", admin_df['Night'].unique())
-            night_row = admin_df[admin_df['Night'] == watch_night].iloc[0]
-            cutoff_rv = datetime.strptime(str(night_row['Cutoff']), "%Y-%m-%d %H:%M")
             user_has_sub = not subs_df[(subs_df['Username'] == st.session_state['username']) & (subs_df['Night'] == watch_night)].empty
-            
-            if user_has_sub or datetime.now() > cutoff_rv:
+            if user_has_sub:
                 st.dataframe(subs_df[subs_df['Night'] == watch_night][['Username', 'QF1', 'QF2', 'QF3', 'QF4', 'SF1', 'SF2', 'Final']], hide_index=True, use_container_width=True)
             else:
-                st.warning("You must submit your own predictions for this night before viewing rivals.")
+                st.warning("You must submit your predictions first.")
 
-    ###########################################################################
-    ##### SECTION 10: HIGHLIGHTS & ADMIN                                  #####
-    ###########################################################################
     elif menu == "Highlights":
         st.title("📺 PDC Highlights")
         st.video("https://www.youtube.com/watch?v=F5u_6Yp-H-U")
