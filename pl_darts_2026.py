@@ -4,15 +4,13 @@ import pandas as pd
 import time
 from datetime import datetime
 import extra_streamlit_components as stx
-from streamlit_option_menu import option_menu  # Required for Pill Menu
+from streamlit_option_menu import option_menu
 
 ###############################################################################
 ##### SECTION 1: PAGE CONFIGURATION                                       #####
 ###############################################################################
 st.set_page_config(page_title="PDC PL Predictor 2026", page_icon="🎯", layout="wide")
 
-if 'cookie_manager' not in st.session_state:
-    st.session_state['cookie_manager'] = stx.CookieManager(key="pdc_pl_v9_final_fix")
 if 'username' not in st.session_state:
     st.session_state['username'] = ""
 
@@ -43,11 +41,14 @@ st.markdown(f"""
     [data-testid="stSidebar"], [data-testid="stSidebarContent"] {{
         background-color: #111111 !important; border-right: 1px solid #C4B454;
     }}
+    
+    /* Navigation styling fixes */
+    .nav-link {{ --hover-color: #262626 !important; }}
+    
     h1, h2, h3 {{ color: #C4B454 !important; text-transform: uppercase; font-weight: 900 !important; }}
     .stMarkdown p, .stText p, [data-testid="stWidgetLabel"] p {{ color: white !important; }}
     .night-header {{ text-align: center; color: #C4B454 !important; font-size: 1.8rem; font-weight: 900; text-transform: uppercase; }}
     
-    /* Table Styling for Leaderboard */
     .betmgm-table {{ width: 100%; border-collapse: collapse; background: rgba(20,20,20,0.9); border-radius: 10px; overflow: hidden; color: white; }}
     .betmgm-table th {{ background: #C4B454; color: black; padding: 12px; text-align: left; text-transform: uppercase; font-weight: 900; }}
     .betmgm-table td {{ padding: 12px; border-bottom: 1px solid #333; }}
@@ -61,46 +62,49 @@ st.markdown(f"""
     .player-name-container p {{ color: white !important; font-weight: bold; text-align: center; }}
     
     div[data-baseweb="select"] > div {{ background-color: #1c1c1c !important; color: white !important; border: 1px solid #C4B454 !important; }}
-    div.stButton > button {{ background: #C4B454 !important; color: #000000 !important; font-weight: 900 !important; border: none !important; }}
+    div.stButton > button {{ background: #C4B454 !important; color: #000000 !important; font-weight: 900 !important; border: none !important; width: 100% !important; }}
     </style>
 """, unsafe_allow_html=True)
 
 ###############################################################################
-##### SECTION 4: AUTHENTICATION & PILL MENU                               #####
+##### SECTION 4: AUTHENTICATION & SIDEBAR MENU                            #####
 ###############################################################################
-st.sidebar.title("🎯 PL 2026 PREDICTOR")
-
-if st.session_state['username'] == "":
-    u_attempt = st.sidebar.text_input("Username", key="login_user")
-    p_attempt = st.sidebar.text_input("Password", type="password", key="login_pass")
-    if st.sidebar.button("Login"):
-        u_df = get_data("Users")
-        match = u_df[(u_df['Username'] == u_attempt) & (u_df['Password'].astype(str) == str(p_attempt))]
-        if not match.empty:
-            st.session_state['username'] = u_attempt
+with st.sidebar:
+    st.title("🎯 PL 2026")
+    
+    if st.session_state['username'] == "":
+        u_attempt = st.text_input("Username", key="login_user")
+        p_attempt = st.text_input("Password", type="password", key="login_pass")
+        if st.button("Login"):
+            u_df = get_data("Users")
+            match = u_df[(u_df['Username'] == u_attempt) & (u_df['Password'].astype(str) == str(p_attempt))]
+            if not match.empty:
+                st.session_state['username'] = u_attempt
+                st.rerun()
+            else:
+                st.error("Invalid Credentials")
+        selected_page = "Matches"
+    else:
+        st.write(f"User: **{st.session_state['username']}**")
+        
+        # This is strictly inside the sidebar now
+        selected_page = option_menu(
+            menu_title="MENU", 
+            options=["Matches", "Leaderboard"],
+            menu_icon="none",
+            icons=None, 
+            default_index=0,
+            styles={
+                "container": {"background-color": "#111111", "border": "1px solid #C4B454", "padding": "5px"},
+                "nav-link": {"color": "white", "font-size": "14px", "text-align": "left", "margin": "0px", "font-weight": "700", "text-transform": "uppercase"},
+                "nav-link-selected": {"background-color": "#C4B454", "color": "black", "font-weight": "900"},
+            }
+        )
+        
+        st.write("---")
+        if st.button("Logout"):
+            st.session_state['username'] = ""
             st.rerun()
-        else:
-            st.sidebar.error("Invalid Credentials")
-    selected_page = "Matches" # Default
-else:
-    st.sidebar.write(f"Logged in: **{st.session_state['username']}**")
-    
-    # PILL MENU NAVIGATION
-    selected_page = option_menu(
-        menu_title=None,
-        options=["Matches", "Leaderboard"],
-        menu_icon="none",
-        default_index=0,
-        styles={
-            "container": {"background-color": "#111111", "border": "1px solid #C4B454", "padding": "5px"},
-            "nav-link": {"color": "white", "font-size": "14px", "text-align": "left", "margin": "0px", "font-weight": "700", "text-transform": "uppercase"},
-            "nav-link-selected": {"background-color": "#C4B454", "color": "black", "font-weight": "900"},
-        }
-    )
-    
-    if st.sidebar.button("Logout"):
-        st.session_state['username'] = ""
-        st.rerun()
 
 ###############################################################################
 ##### SECTION 5: RENDER MATCH FUNCTION                                    #####
@@ -130,12 +134,10 @@ def render_match(p1, p2, key, img_lookup, disabled=False):
 ###############################################################################
 if st.session_state['username'] == "":
     st.markdown("<h1 style='text-align: center;'>Welcome to the 2026 Premier League Predictor</h1>", unsafe_allow_html=True)
-    st.info("Please login on the sidebar to enter your predictions.")
 else:
     players_df = get_data("Players")
-    img_lookup = dict(zip(players_df['Name'], players_df['Image_URL']))
+    img_lookup = dict(zip(players_df['Name'], players_df['Image_URL'])) if not players_df.empty else {}
     admin_df = get_data("PL_2026_Admin")
-    # Clean headers safely
     admin_df.columns = [str(col).strip() for col in admin_df.columns]
 
     if selected_page == "Matches":
@@ -146,7 +148,7 @@ else:
             st.markdown(f"<h1 style='text-align: center;'>📍 {night_data['Venue']}</h1>", unsafe_allow_html=True)
             st.markdown(f"<div class='night-header'>{night_data['Night']}</div>", unsafe_allow_html=True)
 
-            # TIMER & CUTOFF
+            # TIMER LOGIC
             is_past_cutoff = False
             if 'Cutoff' in admin_df.columns:
                 try:
@@ -173,7 +175,7 @@ else:
 
             if has_submitted: st.warning("⚠️ Submission received. Your entries are locked.")
 
-            # BRACKET ENTRY (Identical to your baseline)
+            # BRACKET ENTRY
             st.markdown("### 1️⃣ Quarter Finals")
             qf1w = render_match(night_data['QF1-P1'], night_data['QF1-P2'], f"qf1_{selected_night}", img_lookup, disabled=lock_app)
             qf2w = render_match(night_data['QF2-P1'], night_data['QF2-P2'], f"qf2_{selected_night}", img_lookup, disabled=lock_app)
@@ -209,7 +211,7 @@ else:
         subs_df = get_data("User_Submissions")
 
         if results_df.empty or subs_df.empty:
-            st.info("Leaderboard will update once the first results are in!")
+            st.info("Standings will appear once the first results are in.")
         else:
             scores = {}
             results_df.columns = [str(c).strip() for c in results_df.columns]
@@ -220,7 +222,6 @@ else:
                 res = results_df[results_df['Night'] == sub['Night']]
                 if not res.empty:
                     res = res.iloc[0]
-                    # QF: 2pts | SF: 3pts | Final: 5pts
                     for col in ['QF1', 'QF2', 'QF3', 'QF4']:
                         if sub[col] == res[col]: scores[user] += 2
                     for col in ['SF1', 'SF2']:
