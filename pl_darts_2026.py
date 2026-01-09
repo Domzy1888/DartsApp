@@ -10,7 +10,7 @@ st.set_page_config(page_title="PDC PL Predictor 2026", page_icon="🎯", layout=
 
 # --- 2. COOKIE & SESSION INITIALIZATION ---
 if 'cookie_manager' not in st.session_state:
-    st.session_state['cookie_manager'] = stx.CookieManager(key="pdc_pl_cookie_manager_v3")
+    st.session_state['cookie_manager'] = stx.CookieManager(key="pdc_pl_cookie_manager_v4")
 cookie_manager = st.session_state['cookie_manager']
 if 'username' not in st.session_state: st.session_state['username'] = ""
 
@@ -26,11 +26,11 @@ def get_data(worksheet):
     except:
         return pd.DataFrame()
 
-# --- 4. STYLING (BetMGM Vegas Gold Edition) ---
-# Primary Gold: #C4B454
+# --- 4. STYLING (The Final Polished Version) ---
+# Primary BetMGM Gold: #C4B454
 st.markdown("""
     <style>
-    /* 1. Main Background */
+    /* Main Background */
     .stApp { 
         background: linear-gradient(rgba(0,0,0,0.85), rgba(0,0,0,0.85)), 
                     url("https://cdn.images.express.co.uk/img/dynamic/4/590x/secondary/5856693.jpg?r=1735554407217"); 
@@ -38,7 +38,7 @@ st.markdown("""
         background-attachment: fixed; 
     }
     
-    /* 2. Sidebar - BetMGM Style */
+    /* Dark Sidebar & Gold Accents */
     [data-testid="stSidebar"], [data-testid="stSidebarContent"] {
         background-color: #111111 !important;
         border-right: 1px solid #C4B454;
@@ -48,21 +48,43 @@ st.markdown("""
         font-weight: bold;
     }
     
-    /* 3. Match Card Container */
+    /* Force Login Button Text to Black */
+    div.stButton > button p {
+        color: #000000 !important;
+        font-weight: 900 !important;
+    }
+    
+    /* Centering the Subheader */
+    .centered-header {
+        text-align: center;
+        color: #C4B454 !important;
+        width: 100%;
+        display: block;
+        margin-bottom: 20px;
+        text-transform: uppercase;
+    }
+
+    /* Match Card UI */
     .pl-card { 
         border: 1px solid #C4B454; 
         border-radius: 12px; 
         background: rgba(20, 20, 20, 0.95); 
         padding: 15px; 
         margin-bottom: 15px;
-        box-shadow: 0 4px 6px rgba(0,0,0,0.3);
     }
     
-    /* 4. Text & Titles */
+    /* Player Name Box - Forces Alignment */
+    .player-name-container {
+        min-height: 2.5em; 
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        margin-top: 8px;
+    }
+
     h1, h2, h3 { color: #C4B454 !important; text-transform: uppercase; letter-spacing: 1px; }
     p, label { color: white !important; font-weight: bold; }
     
-    /* 5. Custom Selectbox */
     div[data-baseweb="select"] > div {
         background-color: #1c1c1c !important;
         color: white !important;
@@ -70,16 +92,14 @@ st.markdown("""
         border-radius: 8px !important;
     }
 
-    /* 6. Submit Button */
+    /* Primary Gold Button */
     div.stButton > button {
         background: #C4B454 !important;
         color: #000000 !important;
         font-weight: 900 !important;
         border: none !important;
         width: 100% !important;
-        padding: 12px !important;
         border-radius: 8px !important;
-        font-size: 1.1rem !important;
         text-transform: uppercase;
     }
     </style>
@@ -89,92 +109,3 @@ st.markdown("""
 st.sidebar.title("🎯 PL 2026 PREDICTOR")
 if st.session_state['username'] == "":
     u_attempt = st.sidebar.text_input("Username")
-    p_attempt = st.sidebar.text_input("Password", type="password")
-    if st.sidebar.button("Login"):
-        u_df = get_data("Users")
-        match = u_df[(u_df['Username'] == u_attempt) & (u_df['Password'] == p_attempt)]
-        if not match.empty:
-            st.session_state['username'] = u_attempt
-            st.rerun()
-else:
-    st.sidebar.write(f"Logged in: **{st.session_state['username']}**")
-    if st.sidebar.button("Logout"):
-        st.session_state['username'] = ""
-        st.rerun()
-
-# --- 6. RENDER MATCH FUNCTION (Updated inner borders & VS) ---
-def render_match(p1, p2, key):
-    img1 = img_lookup.get(p1, "https://via.placeholder.com/150")
-    img2 = img_lookup.get(p2, "https://via.placeholder.com/150")
-    
-    st.markdown(f"""
-        <div class="pl-card">
-            <div style="display: flex; justify-content: space-around; align-items: center; margin-bottom: 15px;">
-                <div style="text-align: center; width: 40%;">
-                    <img src="{img1}" style="width: 100%; max-width: 85px; border-radius: 10px; border: none;">
-                    <p style="margin-top: 5px; font-size: 0.85rem; color: #C4B454 !important;">{p1}</p>
-                </div>
-                <div style="color: #C4B454; font-size: 1.3rem; font-weight: 900; font-style: italic;">VS</div>
-                <div style="text-align: center; width: 40%;">
-                    <img src="{img2}" style="width: 100%; max-width: 85px; border-radius: 10px; border: none;">
-                    <p style="margin-top: 5px; font-size: 0.85rem; color: #C4B454 !important;">{p2}</p>
-                </div>
-            </div>
-    """, unsafe_allow_html=True)
-    
-    winner = st.selectbox(f"Winner: {p1} vs {p2}", ["Select...", p1, p2], key=key, label_visibility="collapsed")
-    
-    st.markdown("</div>", unsafe_allow_html=True)
-    return winner
-
-# --- 7. MAIN APP LOGIC ---
-if st.session_state['username'] == "":
-    st.title("Welcome to the 2026 Premier League Predictor")
-    st.info("Please login on the sidebar to enter your bracket.")
-else:
-    players_df = get_data("Players")
-    img_lookup = dict(zip(players_df['Name'], players_df['Image_URL']))
-    
-    admin_df = get_data("PL_2026_Admin")
-    admin_df.columns = admin_df.columns.str.strip()
-    
-    if not admin_df.empty:
-        night_data = admin_df.iloc[0]
-        st.title(f"📍 {night_data['Venue']}")
-        st.subheader(f"{night_data['Night']} Bracket")
-
-        # Layout for mobile: Single column works best for brackets
-        st.markdown("### 1️⃣ Quarter Finals")
-        qf1w = render_match(night_data['QF1-P1'], night_data['QF1-P2'], "qf1")
-        qf2w = render_match(night_data['QF2-P1'], night_data['QF2-P2'], "qf2")
-        qf3w = render_match(night_data['QF3-P1'], night_data['QF3-P2'], "qf3")
-        qf4w = render_match(night_data['QF4-P1'], night_data['QF4-P2'], "qf4")
-
-        if all(x != "Select..." for x in [qf1w, qf2w, qf3w, qf4w]):
-            st.markdown("---")
-            st.markdown("### 2️⃣ Semi Finals")
-            sf1w = render_match(qf1w, qf2w, "sf1")
-            sf2w = render_match(qf3w, qf4w, "sf2")
-
-            if all(x != "Select..." for x in [sf1w, sf2w]):
-                st.markdown("---")
-                st.markdown("### 🏆 The Final")
-                finalw = render_match(sf1w, sf2w, "final")
-
-                if finalw != "Select...":
-                    if st.button("🚀 SUBMIT PREDICTIONS"):
-                        new_row = pd.DataFrame([{
-                            "Timestamp": datetime.now().strftime("%Y-%m-%d %H:%M"),
-                            "Username": st.session_state['username'],
-                            "Night": night_data['Night'],
-                            "QF1": qf1w, "QF2": qf2w, "QF3": qf3w, "QF4": qf4w,
-                            "SF1": sf1w, "SF2": sf2w, "Final": finalw
-                        }])
-                        existing = get_data("User_Submissions")
-                        conn.update(spreadsheet=URL, worksheet="User_Submissions", data=pd.concat([existing, new_row], ignore_index=True))
-                        st.balloons()
-                        st.success("Locked in! Good luck!")
-                        time.sleep(2)
-                        st.rerun()
-    else:
-        st.warning("Admin is setting up the next night.")
