@@ -30,10 +30,11 @@ def get_data(worksheet):
         return pd.DataFrame()
 
 ###############################################################################
-##### SECTION 3: STYLING                                                  #####
+##### SECTION 3: STYLING (REMEDIED FOR GREY TEXT)                         #####
 ###############################################################################
 st.markdown(f"""
     <style>
+    /* Background and Sidebar */
     .stApp {{ 
         background: linear-gradient(rgba(0,0,0,0.8), rgba(0,0,0,0.8)), 
                     url("https://i.postimg.cc/d1kXbbDk/2025PLFinal-Gen-View.jpg"); 
@@ -45,10 +46,26 @@ st.markdown(f"""
     [data-testid="stSidebar"] button p {{
         color: #000000 !important; font-weight: 900 !important;
     }}
+
+    /* Fixing Grey Headers and Info Text */
+    h1, h2, h3, .stMarkdown h1, .stMarkdown h2, .stMarkdown h3 {{
+        color: #C4B454 !important;
+        text-transform: uppercase;
+        font-weight: 900 !important;
+    }}
+    
+    /* Target the 'Welcome' and 'Please login' text specifically */
+    .stMarkdown p, .stText p, [data-testid="stWidgetLabel"] p {{
+        color: white !important;
+    }}
+
+    /* Night Header specifically */
     .night-header {{
         text-align: center; color: #C4B454 !important; font-size: 1.8rem;
         font-weight: 900; text-transform: uppercase; margin-bottom: 5px;
     }}
+
+    /* Timer Boxes */
     .timer-container {{
         display: flex; justify-content: center; gap: 10px; margin-bottom: 25px;
     }}
@@ -59,15 +76,21 @@ st.markdown(f"""
     }}
     .timer-val {{ color: #C4B454; font-size: 1.5rem; font-weight: 900; display: block; line-height: 1; }}
     .timer-label {{ color: white; font-size: 0.65rem; text-transform: uppercase; }}
+
+    /* Cards and Player Names */
     .pl-card {{ 
         border: 1px solid #C4B454; border-radius: 12px; 
         background: rgba(20, 20, 20, 0.95); padding: 15px; margin-bottom: 15px;
     }}
     .player-name-container p {{ color: white !important; font-weight: bold; text-align: center; }}
+
+    /* Select Boxes */
     div[data-baseweb="select"] > div {{
         background-color: #1c1c1c !important; color: white !important;
         border: 1px solid #C4B454 !important; border-radius: 8px !important;
     }}
+    
+    /* Buttons */
     div.stButton > button {{
         background: #C4B454 !important; color: #000000 !important;
         font-weight: 900 !important; border: none !important;
@@ -132,7 +155,7 @@ else:
     admin_df.columns = admin_df.columns.str.strip()
     
     if not admin_df.empty:
-        # NEW: Night Selection Dropdown
+        # Night Selection Dropdown
         selected_night = st.selectbox("Select Night", admin_df['Night'].unique())
         night_data = admin_df[admin_df['Night'] == selected_night].iloc[0]
         
@@ -171,7 +194,6 @@ else:
 
         # BRACKET ENTRY
         st.markdown("### 1️⃣ Quarter Finals")
-        # Added night suffix to keys to ensure unique state per night
         qf1w = render_match(night_data['QF1-P1'], night_data['QF1-P2'], f"qf1_{selected_night}", img_lookup, disabled=lock_app)
         qf2w = render_match(night_data['QF2-P1'], night_data['QF2-P2'], f"qf2_{selected_night}", img_lookup, disabled=lock_app)
         qf3w = render_match(night_data['QF3-P1'], night_data['QF3-P2'], f"qf3_{selected_night}", img_lookup, disabled=lock_app)
