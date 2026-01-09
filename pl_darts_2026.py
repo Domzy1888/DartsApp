@@ -42,9 +42,6 @@ st.markdown(f"""
         background-color: #111111 !important; border-right: 1px solid #C4B454;
     }}
     
-    /* Navigation styling fixes */
-    .nav-link {{ --hover-color: #262626 !important; }}
-    
     h1, h2, h3 {{ color: #C4B454 !important; text-transform: uppercase; font-weight: 900 !important; }}
     .stMarkdown p, .stText p, [data-testid="stWidgetLabel"] p {{ color: white !important; }}
     .night-header {{ text-align: center; color: #C4B454 !important; font-size: 1.8rem; font-weight: 900; text-transform: uppercase; }}
@@ -87,16 +84,16 @@ with st.sidebar:
     else:
         st.write(f"User: **{st.session_state['username']}**")
         
-        # This is strictly inside the sidebar now
+        # Pill Menu inside Sidebar - No Gold Border
         selected_page = option_menu(
-            menu_title="MENU", 
+            menu_title=None, 
             options=["Matches", "Leaderboard"],
             menu_icon="none",
             icons=None, 
             default_index=0,
             styles={
-                "container": {"background-color": "#111111", "border": "1px solid #C4B454", "padding": "5px"},
-                "nav-link": {"color": "white", "font-size": "14px", "text-align": "left", "margin": "0px", "font-weight": "700", "text-transform": "uppercase"},
+                "container": {"background-color": "transparent", "padding": "0px"},
+                "nav-link": {"color": "white", "font-size": "14px", "text-align": "left", "margin": "5px 0px", "font-weight": "700", "text-transform": "uppercase"},
                 "nav-link-selected": {"background-color": "#C4B454", "color": "black", "font-weight": "900"},
             }
         )
@@ -148,34 +145,19 @@ else:
             st.markdown(f"<h1 style='text-align: center;'>📍 {night_data['Venue']}</h1>", unsafe_allow_html=True)
             st.markdown(f"<div class='night-header'>{night_data['Night']}</div>", unsafe_allow_html=True)
 
-            # TIMER LOGIC
             is_past_cutoff = False
             if 'Cutoff' in admin_df.columns:
                 try:
                     cutoff_val = datetime.strptime(str(night_data['Cutoff']), "%Y-%m-%d %H:%M")
-                    diff = cutoff_val - datetime.now()
-                    if diff.total_seconds() > 0:
-                        days, remainder = divmod(diff.total_seconds(), 86400)
-                        hours, remainder = divmod(remainder, 3600)
-                        minutes, _ = divmod(remainder, 60)
-                        st.markdown("<p style='text-align:center; color:#C4B454; margin-bottom:5px; font-weight:bold;'>TIME UNTIL ENTRIES CLOSE</p>", unsafe_allow_html=True)
-                        st.markdown(f"""<div class="timer-container">
-                            <div class="timer-box"><span class="timer-val">{int(days)}</span><span class="timer-label">Days</span></div>
-                            <div class="timer-box"><span class="timer-val">{int(hours):02d}</span><span class="timer-label">Hrs</span></div>
-                            <div class="timer-box"><span class="timer-val">{int(minutes):02d}</span><span class="timer-label">Mins</span></div>
-                        </div>""", unsafe_allow_html=True)
-                    else:
-                        is_past_cutoff = True
-                        st.markdown("<p style='text-align:center; color:#ff4b4b; font-weight:bold;'>PREDICTIONS CLOSED</p>", unsafe_allow_html=True)
+                    if cutoff_val < datetime.now(): is_past_cutoff = True
                 except: pass
 
             subs_df = get_data("User_Submissions")
-            has_submitted = not subs_df[(subs_df['Username'] == st.session_state['username']) & (subs_df['Night'] == night_data['Night'])].empty
+            has_submitted = not subs_df[(subs_df['Username'] == st.session_state['username']) & (subs_df['Night'] == selected_night)].empty
             lock_app = has_submitted or is_past_cutoff
 
             if has_submitted: st.warning("⚠️ Submission received. Your entries are locked.")
 
-            # BRACKET ENTRY
             st.markdown("### 1️⃣ Quarter Finals")
             qf1w = render_match(night_data['QF1-P1'], night_data['QF1-P2'], f"qf1_{selected_night}", img_lookup, disabled=lock_app)
             qf2w = render_match(night_data['QF2-P1'], night_data['QF2-P2'], f"qf2_{selected_night}", img_lookup, disabled=lock_app)
@@ -214,19 +196,25 @@ else:
             st.info("Standings will appear once the first results are in.")
         else:
             scores = {}
+            # Sanitize Column Headers
             results_df.columns = [str(c).strip() for c in results_df.columns]
+            subs_df.columns = [str(c).strip() for c in subs_df.columns]
             
             for _, sub in subs_df.iterrows():
                 user = sub['Username']
                 if user not in scores: scores[user] = 0
-                res = results_df[results_df['Night'] == sub['Night']]
+                
+                # Match result for the night
+                res = results_df[results_df['Night'].astype(str).str.strip() == str(sub['Night']).strip()]
+                
                 if not res.empty:
                     res = res.iloc[0]
+                    # DATA SANITIZER COMPARISON (Strip spaces and force string)
                     for col in ['QF1', 'QF2', 'QF3', 'QF4']:
-                        if sub[col] == res[col]: scores[user] += 2
+                        if str(sub[col]).strip() == str(res[col]).strip(): scores[user] += 2
                     for col in ['SF1', 'SF2']:
-                        if sub[col] == res[col]: scores[user] += 3
-                    if sub['Final'] == res['Final']: scores[user] += 5
+                        if str(sub[col]).strip() == str(res[col]).strip(): scores[user] += 3
+                    if str(sub['Final']).strip() == str(res['Final']).strip(): scores[user] += 5
             
             lb_data = pd.DataFrame(list(scores.items()), columns=['User', 'Points']).sort_values('Points', ascending=False)
             html = "<table class='betmgm-table'><tr><th>Rank</th><th>User</th><th>Points</th></tr>"
