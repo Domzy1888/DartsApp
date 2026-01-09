@@ -2,6 +2,7 @@ streamlit
 st-gsheets-connection
 pandas
 extra-streamlit-components
+streamlit-option-menu
 beautifulsoup4
 html5lib
 lxml
