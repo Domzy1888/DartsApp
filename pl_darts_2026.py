@@ -2,7 +2,7 @@ import streamlit as st
 from streamlit_gsheets import GSheetsConnection
 import pandas as pd
 import time
-from datetime import datetime, timedelta
+from datetime import datetime
 import extra_streamlit_components as stx
 
 # 1. Page Configuration
@@ -10,9 +10,9 @@ st.set_page_config(page_title="PDC PL Predictor 2026", page_icon="🎯", layout=
 
 # --- 2. COOKIE & SESSION INITIALIZATION ---
 if 'cookie_manager' not in st.session_state:
-    st.session_state['cookie_manager'] = stx.CookieManager(key="pdc_pl_cookie_manager_v4")
-cookie_manager = st.session_state['cookie_manager']
-if 'username' not in st.session_state: st.session_state['username'] = ""
+    st.session_state['cookie_manager'] = stx.CookieManager(key="pdc_pl_v5_final")
+if 'username' not in st.session_state:
+    st.session_state['username'] = ""
 
 # --- 3. CONNECTION SETUP ---
 conn = st.connection("gsheets", type=GSheetsConnection)
@@ -26,8 +26,7 @@ def get_data(worksheet):
     except:
         return pd.DataFrame()
 
-# --- 4. STYLING (The Final Polished Version) ---
-# Primary BetMGM Gold: #C4B454
+# --- 4. STYLING (BetMGM Vegas Gold + Fixed Alignment) ---
 st.markdown("""
     <style>
     /* Main Background */
@@ -43,25 +42,27 @@ st.markdown("""
         background-color: #111111 !important;
         border-right: 1px solid #C4B454;
     }
+    
+    /* Sidebar Text & Labels */
     [data-testid="stSidebar"] h1, [data-testid="stSidebar"] p, [data-testid="stSidebar"] label {
         color: #C4B454 !important;
         font-weight: bold;
     }
-    
-    /* Force Login Button Text to Black */
-    div.stButton > button p {
+
+    /* FIX: Force Login Button Text to BLACK */
+    [data-testid="stSidebar"] button p {
         color: #000000 !important;
         font-weight: 900 !important;
     }
-    
-    /* Centering the Subheader */
-    .centered-header {
+
+    /* Centered Subheader for Night */
+    .night-header {
         text-align: center;
         color: #C4B454 !important;
-        width: 100%;
-        display: block;
-        margin-bottom: 20px;
+        font-size: 1.5rem;
+        font-weight: bold;
         text-transform: uppercase;
+        margin-bottom: 20px;
     }
 
     /* Match Card UI */
@@ -73,9 +74,9 @@ st.markdown("""
         margin-bottom: 15px;
     }
     
-    /* Player Name Box - Forces Alignment */
+    /* FIX: Player Name Box - Forces vertical alignment of images */
     .player-name-container {
-        min-height: 2.5em; 
+        min-height: 3em; 
         display: flex;
         align-items: center;
         justify-content: center;
@@ -83,8 +84,8 @@ st.markdown("""
     }
 
     h1, h2, h3 { color: #C4B454 !important; text-transform: uppercase; letter-spacing: 1px; }
-    p, label { color: white !important; font-weight: bold; }
     
+    /* Selectbox Styling */
     div[data-baseweb="select"] > div {
         background-color: #1c1c1c !important;
         color: white !important;
@@ -92,7 +93,7 @@ st.markdown("""
         border-radius: 8px !important;
     }
 
-    /* Primary Gold Button */
+    /* BetMGM Gold Buttons */
     div.stButton > button {
         background: #C4B454 !important;
         color: #000000 !important;
@@ -100,12 +101,44 @@ st.markdown("""
         border: none !important;
         width: 100% !important;
         border-radius: 8px !important;
-        text-transform: uppercase;
     }
     </style>
 """, unsafe_allow_html=True)
 
-# --- 5. AUTHENTICATION ---
+# --- 5. AUTHENTICATION SIDEBAR ---
 st.sidebar.title("🎯 PL 2026 PREDICTOR")
 if st.session_state['username'] == "":
-    u_attempt = st.sidebar.text_input("Username")
+    u_attempt = st.sidebar.text_input("Username", key="login_user")
+    p_attempt = st.sidebar.text_input("Password", type="password", key="login_pass")
+    if st.sidebar.button("Login"):
+        u_df = get_data("Users")
+        # Ensure password is treated as string for comparison
+        match = u_df[(u_df['Username'] == u_attempt) & (u_df['Password'].astype(str) == str(p_attempt))]
+        if not match.empty:
+            st.session_state['username'] = u_attempt
+            st.rerun()
+        else:
+            st.sidebar.error("Invalid Credentials")
+else:
+    st.sidebar.write(f"Logged in: **{st.session_state['username']}**")
+    if st.sidebar.button("Logout"):
+        st.session_state['username'] = ""
+        st.rerun()
+
+# --- 6. RENDER MATCH FUNCTION ---
+def render_match(p1, p2, key):
+    img1 = img_lookup.get(p1, "https://via.placeholder.com/150")
+    img2 = img_lookup.get(p2, "https://via.placeholder.com/150")
+    
+    st.markdown(f"""
+        <div class="pl-card">
+            <div style="display: flex; justify-content: space-around; align-items: flex-start; margin-bottom: 15px;">
+                <div style="text-align: center; width: 45%;">
+                    <img src="{img1}" style="width: 100%; max-width: 90px; border-radius: 10px;">
+                    <div class="player-name-container">
+                        <p style="font-size: 0.85rem; color: #C4B454 !important; margin:0;">{p1}</p>
+                    </div>
+                </div>
+                <div style="color: #C4B454; font-size: 1.4rem; font-weight: 900; margin-top: 30px;">VS</div>
+                <div style="text-align: center; width: 45%;">
+                    <img src="{img2}" style="width: 100%; max-width: 90px;
