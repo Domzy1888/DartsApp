@@ -103,10 +103,22 @@ if st.session_state['username'] == "":
     st.markdown("<h1 style='text-align: center;'>Welcome to the 2026 Premier League Predictor</h1>", unsafe_allow_html=True)
     st.info("Please login on the sidebar to enter your predictions.")
 else:
+    # 1. Load Data Safely
     players_df = get_data("Players")
-    img_lookup = dict(zip(players_df['Name'], players_df['Image_URL']))
     admin_df = get_data("PL_2026_Admin")
     subs_df = get_data("User_Submissions")
+
+    # 2. Build Image Lookup with Safety Check
+    img_lookup = {}
+    if not players_df.empty and 'Name' in players_df.columns and 'Image_URL' in players_df.columns:
+        img_lookup = dict(zip(players_df['Name'], players_df['Image_URL']))
+    else:
+        st.error("⚠️ Data Error: 'Players' sheet is missing 'Name' or 'Image_URL' columns.")
+
+    # 3. Clean Admin Columns (Remove accidental spaces)
+    if not admin_df.empty:
+        admin_df.columns = admin_df.columns.str.strip()
+
 
     # --- PAGE: MATCHES ---
     if menu == "Matches":
