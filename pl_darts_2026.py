@@ -9,6 +9,7 @@ st.set_page_config(page_title="PDC PL Predictor 2026", page_icon="🎯", layout=
 
 if 'username' not in st.session_state: st.session_state['username'] = ""
 if 'current_page' not in st.session_state: st.session_state['current_page'] = "Matches"
+if 'reg_mode' not in st.session_state: st.session_state['reg_mode'] = False
 
 conn = st.connection("gsheets", type=GSheetsConnection)
 URL = st.secrets["connections"]["gsheets"]["spreadsheet"]
@@ -30,45 +31,34 @@ st.markdown("""
                     url("https://i.postimg.cc/d1kXbbDk/2025PLFinal-Gen-View.jpg"); 
         background-size: cover; background-attachment: fixed; 
     }
-    
     [data-testid="stSidebar"] {
         background-color: rgba(15, 15, 15, 0.98) !important;
         border-right: 1px solid #C4B454;
     }
-    
     [data-testid="stSidebarContent"] { color: white !important; }
-
     html, body, [class*="st-"] p, label, .stMarkdown, .stText, [data-testid="stWidgetLabel"] p {
         color: white !important; font-weight: 500 !important;
     }
     h1, h2, h3 { color: #C4B454 !important; text-transform: uppercase; font-weight: 900 !important; }
-    
     .leaderboard-ui {
         width: 100%; border-collapse: collapse; background: rgba(15, 15, 15, 0.95);
         border: 1px solid #C4B454; border-radius: 10px; overflow: hidden;
     }
     .leaderboard-ui th { background-color: #C4B454; color: black; padding: 15px; text-align: left; font-weight: 900; }
     .leaderboard-ui td { padding: 15px; border-bottom: 1px solid #333; color: white; }
-
     div.stButton > button {
         background-color: #C4B454 !important; color: black !important;
         font-weight: 700 !important; text-transform: uppercase; width: 100% !important;
         border-radius: 4px; height: 45px;
     }
     div.stButton > button:hover { background-color: #e5d464 !important; }
-
     div[data-baseweb="select"] > div {
         background-color: rgba(30, 30, 30, 0.9) !important;
         color: white !important; border: 1px solid #C4B454 !important;
     }
-
     .countdown-box {
-        background: rgba(0,0,0,0.8); 
-        border: 2px solid #C4B454; 
-        border-radius: 10px; 
-        padding: 10px; 
-        width: 70px; 
-        text-align: center;
+        background: rgba(0,0,0,0.8); border: 2px solid #C4B454; 
+        border-radius: 10px; padding: 10px; width: 70px; text-align: center;
     }
     </style>
 """, unsafe_allow_html=True)
@@ -110,18 +100,9 @@ def get_countdown(target_date_str):
             minutes, seconds = divmod(remainder, 60)
             return f"""
                 <div style='display: flex; justify-content: center; gap: 10px; margin-top: 10px; margin-bottom: 20px;'>
-                    <div class='countdown-box'>
-                        <div style='font-size: 1.5rem; font-weight: 900; color: #C4B454;'>{days}</div>
-                        <div style='font-size: 0.5rem; color: white;'>DAYS</div>
-                    </div>
-                    <div class='countdown-box'>
-                        <div style='font-size: 1.5rem; font-weight: 900; color: #C4B454;'>{hours:02d}</div>
-                        <div style='font-size: 0.5rem; color: white;'>HRS</div>
-                    </div>
-                    <div class='countdown-box'>
-                        <div style='font-size: 1.5rem; font-weight: 900; color: #C4B454;'>{minutes:02d}</div>
-                        <div style='font-size: 0.5rem; color: white;'>MINS</div>
-                    </div>
+                    <div class='countdown-box'><div style='font-size: 1.5rem; font-weight: 900; color: #C4B454;'>{days}</div><div style='font-size: 0.5rem; color: white;'>DAYS</div></div>
+                    <div class='countdown-box'><div style='font-size: 1.5rem; font-weight: 900; color: #C4B454;'>{hours:02d}</div><div style='font-size: 0.5rem; color: white;'>HRS</div></div>
+                    <div class='countdown-box'><div style='font-size: 1.5rem; font-weight: 900; color: #C4B454;'>{minutes:02d}</div><div style='font-size: 0.5rem; color: white;'>MINS</div></div>
                 </div>
             """
     except: pass
@@ -146,15 +127,37 @@ def render_match(p1, p2, key, img_lookup, disabled=False):
 with st.sidebar:
     st.image("https://i.postimg.cc/8kr9Yqnx/darts-logo-big.png", width='stretch')
     st.markdown("<h1 style='text-align: center; font-size: 1.5rem;'>MATCH PREDICTOR</h1>", unsafe_allow_html=True)
-
+    
     if st.session_state['username'] == "":
-        u_in = st.text_input("Username")
-        p_in = st.text_input("Password", type="password")
-        if st.button("LOGIN"):
-            udf = get_data("Users")
-            if not udf[(udf['Username'].astype(str)==str(u_in)) & (udf['Password'].astype(str)==str(p_in))].empty:
-                st.session_state['username'] = u_in; st.rerun()
-            else: st.error("Invalid Login")
+        if not st.session_state['reg_mode']:
+            u_in = st.text_input("Username")
+            p_in = st.text_input("Password", type="password")
+            if st.button("LOGIN"):
+                udf = get_data("Users")
+                if not udf[(udf['Username'].astype(str)==str(u_in)) & (udf['Password'].astype(str)==str(p_in))].empty:
+                    st.session_state['username'] = u_in; st.rerun()
+                else: st.error("Invalid Login")
+            
+            if st.button("CREATE AN ACCOUNT"):
+                st.session_state['reg_mode'] = True; st.rerun()
+        else:
+            st.markdown("### Register")
+            new_u = st.text_input("New Username")
+            new_p = st.text_input("New Password", type="password")
+            if st.button("SUBMIT REGISTRATION"):
+                udf = get_data("Users")
+                if new_u in udf['Username'].astype(str).values:
+                    st.error("Username already exists!")
+                elif new_u and new_p:
+                    new_user_df = pd.DataFrame([{"Username": new_u, "Password": new_p}])
+                    conn.update(spreadsheet=URL, worksheet="Users", data=pd.concat([udf, new_user_df]))
+                    st.cache_data.clear()
+                    st.success("Account Created! Please Login.")
+                    st.session_state['reg_mode'] = False; time.sleep(1); st.rerun()
+                else: st.warning("Please fill in both fields.")
+            
+            if st.button("BACK TO LOGIN"):
+                st.session_state['reg_mode'] = False; st.rerun()
     else:
         st.write(f"Logged in: **{st.session_state['username']}**")
         if st.button("Matches"): st.session_state['current_page'] = "Matches"
@@ -162,9 +165,7 @@ with st.sidebar:
         if st.session_state['username'].lower() == "domzy":
             if st.button("Admin"): st.session_state['current_page'] = "Admin"
         if st.button("Logout"): 
-            st.session_state['username'] = ""
-            st.session_state['current_page'] = "Matches"
-            st.rerun()
+            st.session_state['username'] = ""; st.session_state['current_page'] = "Matches"; st.rerun()
 
 # 6. MAIN CONTENT
 if st.session_state['username'] != "":
@@ -177,33 +178,27 @@ if st.session_state['username'] != "":
             night = st.selectbox("Select Night", admin_df['Night'].unique())
             n_data = admin_df[admin_df['Night'] == night].iloc[0]
             st.markdown(f"<h1 style='text-align: center;'>{night}</h1>", unsafe_allow_html=True)
-            st.markdown(f"<h3 style='text-align: center;'> {n_data['Venue']}</h3>", unsafe_allow_html=True)
+            st.markdown(f"<h3 style='text-align: center;'>{n_data['Venue']}</h3>", unsafe_allow_html=True)
             st.markdown(get_countdown(n_data['Cutoff']), unsafe_allow_html=True)
-            
             subs_df = get_data("User_Submissions")
             done = not subs_df[(subs_df['Username'] == st.session_state['username']) & (subs_df['Night'] == night)].empty
-
             st.write("### Quarter Finals")
             q1 = render_match(n_data['QF1-P1'], n_data['QF1-P2'], "q1", img_lookup, done)
             q2 = render_match(n_data['QF2-P1'], n_data['QF2-P2'], "q2", img_lookup, done)
             q3 = render_match(n_data['QF3-P1'], n_data['QF3-P2'], "q3", img_lookup, done)
             q4 = render_match(n_data['QF4-P1'], n_data['QF4-P2'], "q4", img_lookup, done)
-
             if all(x != "Select Winner" for x in [q1, q2, q3, q4]):
-                st.divider()
-                st.write("### Semi Finals")
+                st.divider(); st.write("### Semi Finals")
                 s1 = render_match(q1, q2, "s1", img_lookup, done)
                 s2 = render_match(q3, q4, "s2", img_lookup, done)
                 if all(x != "Select Winner" for x in [s1, s2]):
-                    st.divider()
-                    st.write("### The Final")
+                    st.divider(); st.write("### The Final")
                     fin = render_match(s1, s2, "fin", img_lookup, done)
                     if fin != "Select Winner" and not done:
                         if st.button("SUBMIT PREDICTIONS"):
                             new_row = pd.DataFrame([{"Timestamp": datetime.now(), "Username": st.session_state['username'], "Night": night, "QF1": q1, "QF2": q2, "QF3": q3, "QF4": q4, "SF1": s1, "SF2": s2, "Final": fin}])
                             conn.update(spreadsheet=URL, worksheet="User_Submissions", data=pd.concat([subs_df, new_row]))
-                            st.cache_data.clear()
-                            st.success("Good luck! Submission saved."); time.sleep(1); st.rerun()
+                            st.cache_data.clear(); st.success("Good luck!"); time.sleep(1); st.rerun()
             if done: st.info("Predictions locked for this night.")
 
     elif st.session_state['current_page'] == "Leaderboard":
@@ -221,33 +216,22 @@ if st.session_state['username'] != "":
         res_df = get_data("PL_Results")
         target = st.selectbox("Select Night to Update", admin_df['Night'].unique())
         td = admin_df[admin_df['Night'] == target].iloc[0]
-        
         aq1 = st.selectbox("QF1 Winner", ["Select Winner", td['QF1-P1'], td['QF1-P2']], key="aq1")
         aq2 = st.selectbox("QF2 Winner", ["Select Winner", td['QF2-P1'], td['QF2-P2']], key="aq2")
         aq3 = st.selectbox("QF3 Winner", ["Select Winner", td['QF3-P1'], td['QF3-P2']], key="aq3")
         aq4 = st.selectbox("QF4 Winner", ["Select Winner", td['QF4-P1'], td['QF4-P2']], key="aq4")
-        
         as1 = st.selectbox("SF1 Winner", ["Select Winner", aq1, aq2] if aq1 != "Select Winner" else ["Select Winner"], key="as1")
         as2 = st.selectbox("SF2 Winner", ["Select Winner", aq3, aq4] if aq3 != "Select Winner" else ["Select Winner"], key="as2")
         afn = st.selectbox("Final Winner", ["Select Winner", as1, as2] if as1 != "Select Winner" else ["Select Winner"], key="afn")
-        
         if st.button("SAVE OFFICIAL RESULTS"):
-            if "Select Winner" in [aq1, aq2, aq3, aq4, as1, as2, afn]:
-                st.error("Please select all winners.")
+            if "Select Winner" in [aq1, aq2, aq3, aq4, as1, as2, afn]: st.error("Please select all winners.")
             else:
                 res_df = res_df[res_df['Night'].astype(str) != str(target)]
                 new_res = pd.DataFrame([{"Night": target, "QF1": aq1, "QF2": aq2, "QF3": aq3, "QF4": aq4, "SF1": as1, "SF2": as2, "Final": afn}])
-                updated = pd.concat([res_df, new_res]).reset_index(drop=True)
-                conn.update(spreadsheet=URL, worksheet="PL_Results", data=updated)
-                st.cache_data.clear()
-                st.success("Scores updated live!"); time.sleep(1); st.rerun()
+                conn.update(spreadsheet=URL, worksheet="PL_Results", data=pd.concat([res_df, new_res]).reset_index(drop=True))
+                st.cache_data.clear(); st.success("Scores updated!"); time.sleep(1); st.rerun()
 else:
-    # Centering the logo using columns
     col1, col2, col3 = st.columns([1, 1, 1])
-    with col2:
-        st.image("https://i.postimg.cc/8kr9Yqnx/darts-logo-big.png", width='stretch')
-    
+    with col2: st.image("https://i.postimg.cc/8kr9Yqnx/darts-logo-big.png", width='stretch')
     st.markdown("<h1 style='text-align: center; margin-top: -20px;'>WELCOME</h1>", unsafe_allow_html=True)
     st.markdown("<p style='text-align: center;'>Please login in the sidebar to view matches and enter predictions.</p>", unsafe_allow_html=True)
-
-
