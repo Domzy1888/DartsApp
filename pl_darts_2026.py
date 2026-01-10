@@ -25,23 +25,18 @@ def get_data(worksheet):
 # 2. THEMED CSS
 st.markdown("""
     <style>
-    /* Main App Background */
     .stApp { 
         background: linear-gradient(rgba(0,0,0,0.8), rgba(0,0,0,0.8)), 
                     url("https://i.postimg.cc/d1kXbbDk/2025PLFinal-Gen-View.jpg"); 
         background-size: cover; background-attachment: fixed; 
     }
     
-    /* Forced Sidebar Dark Theme */
     [data-testid="stSidebar"] {
         background-color: rgba(15, 15, 15, 0.98) !important;
         border-right: 1px solid #C4B454;
     }
     
-    /* Sidebar Text and Icons */
-    [data-testid="stSidebarContent"] {
-        color: white !important;
-    }
+    [data-testid="stSidebarContent"] { color: white !important; }
 
     html, body, [class*="st-"] p, label, .stMarkdown, .stText, [data-testid="stWidgetLabel"] p {
         color: white !important; font-weight: 500 !important;
@@ -67,7 +62,6 @@ st.markdown("""
         color: white !important; border: 1px solid #C4B454 !important;
     }
 
-    /* Countdown Styling */
     .countdown-box {
         background: rgba(0,0,0,0.8); 
         border: 2px solid #C4B454; 
@@ -140,9 +134,9 @@ def render_match(p1, p2, key, img_lookup, disabled=False):
     st.markdown(f"""
         <div style="border: 1px solid #C4B454; border-radius: 12px; background: rgba(20, 20, 20, 0.95); padding: 15px; margin-bottom: 10px;">
             <div style="display: flex; justify-content: space-around; align-items: center;">
-                <div style="text-align: center; width: 40%;"><img src="{img1}" style="width: 75px; border-radius: 8px; border: 1px solid #C4B454;"><br>{p1}</div>
+                <div style="text-align: center; width: 40%;"><img src="{img1}" style="width: 75px; border-radius: 8px;"><br>{p1}</div>
                 <div style="color: #C4B454; font-weight: 900; font-size: 1.2rem;">VS</div>
-                <div style="text-align: center; width: 40%;"><img src="{img2}" style="width: 75px; border-radius: 8px; border: 1px solid #C4B454;"><br>{p2}</div>
+                <div style="text-align: center; width: 40%;"><img src="{img2}" style="width: 75px; border-radius: 8px;"><br>{p2}</div>
             </div>
         </div>
     """, unsafe_allow_html=True)
@@ -182,8 +176,6 @@ if st.session_state['username'] != "":
             n_data = admin_df[admin_df['Night'] == night].iloc[0]
             st.markdown(f"<h1 style='text-align: center;'>{night}</h1>", unsafe_allow_html=True)
             st.markdown(f"<h3 style='text-align: center;'>📍 {n_data['Venue']}</h3>", unsafe_allow_html=True)
-            
-            # REINSTATED COUNTDOWN
             st.markdown(get_countdown(n_data['Cutoff']), unsafe_allow_html=True)
             
             subs_df = get_data("User_Submissions")
@@ -250,4 +242,3 @@ if st.session_state['username'] != "":
 else:
     st.markdown("<h1 style='text-align: center; margin-top: 100px;'>🎯 Welcome</h1>", unsafe_allow_html=True)
     st.markdown("<p style='text-align: center;'>Please login in the sidebar to view matches and enter predictions.</p>", unsafe_allow_html=True)
- 
