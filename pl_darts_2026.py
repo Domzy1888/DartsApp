@@ -25,7 +25,7 @@ def get_data(worksheet):
     except: return pd.DataFrame()
 
 ###############################################################################
-##### SECTION 2: CSS - AGGRESSIVE UNIFORM BUTTONS                         #####
+##### SECTION 2: CSS - THE WHITE TEXT & UI FIXES                          #####
 ###############################################################################
 st.markdown("""
     <style>
@@ -36,47 +36,63 @@ st.markdown("""
         background-size: cover; background-attachment: fixed; 
     }
     
-    /* 2. Sidebar styling */
+    /* 2. GLOBAL TEXT OVERRIDE: Forces White & 500 Weight Everywhere */
+    /* This targets labels, paragraphs, and general text to remove grey */
+    html, body, [class*="st-"] p, label, .stMarkdown, .stText, [data-testid="stWidgetLabel"] p {
+        color: white !important;
+        font-weight: 500 !important;
+        font-family: 'Source Sans Pro', sans-serif;
+    }
+
+    /* 3. Headers - Gold & Heavy */
+    h1, h2, h3 { 
+        color: #C4B454 !important; 
+        text-transform: uppercase; 
+        font-weight: 900 !important; 
+    }
+
+    /* 4. Sidebar Background & Border */
     [data-testid="stSidebar"], [data-testid="stSidebarContent"] {
         background-color: #111111 !important;
         border-right: 1px solid #C4B454;
     }
 
-    /* 3. FORCE FULL WIDTH BUTTONS */
-    /* This overrides the 'shrink-wrap' behavior seen in your screenshots */
-    [data-testid="stSidebar"] .stButton button {
-        width: 100% !important;
-        display: flex !important;
-        justify-content: flex-start !important; /* Aligns text/icon to left */
-        padding-left: 20px !important;
-        background-color: #C4B454 !important;
-        color: #000000 !important;
-        font-weight: 600 !important;
-        border: none !important;
+    /* 5. Sidebar Buttons (Matches, Leaderboard, Admin) */
+    [data-testid="stSidebar"] div.stButton > button { 
+        background: #C4B454 !important; 
+        color: #000000 !important; 
+        font-weight: 600 !important; 
+        border: none !important; 
         text-transform: uppercase;
+        width: 100% !important;
         border-radius: 4px;
-        height: 45px;
-        margin-bottom: 5px !important;
+        margin-bottom: 8px;
     }
-
-    [data-testid="stSidebar"] .stButton button:hover {
-        background-color: #e5d464 !important;
-    }
-
-    /* 4. Match Cards & Dropdowns */
-    .pl-card { 
-        border: 1px solid #C4B454; border-radius: 12px; 
-        background: rgba(20, 20, 20, 0.95); padding: 15px; margin-bottom: 15px; 
-    }
+    
+    /* 6. Dropdowns (Selectboxes) Styling */
     div[data-baseweb="select"] > div {
         background-color: rgba(30, 30, 30, 0.9) !important;
         color: white !important;
         border: 1px solid #C4B454 !important;
     }
-    
-    /* Text styling */
-    h1, h2, h3 { color: #C4B454 !important; text-transform: uppercase; font-weight: 900 !important; }
-    .stMarkdown p, .stText p { color: white !important; font-weight: 500 !important; }
+    /* Ensure the text inside the dropdown is white */
+    div[data-testid="stSelectbox"] div[data-baseweb="select"] {
+        color: white !important;
+    }
+
+    /* 7. Match Cards */
+    .pl-card { 
+        border: 1px solid #C4B454; 
+        border-radius: 12px; 
+        background: rgba(20, 20, 20, 0.95); 
+        padding: 15px; 
+        margin-bottom: 15px; 
+    }
+
+    /* 8. Leaderboard Table */
+    .betmgm-table { width: 100%; border-collapse: collapse; background: rgba(20,20,20,0.9); border-radius: 10px; overflow: hidden; color: white; }
+    .betmgm-table th { background: #C4B454; color: black; padding: 12px; text-align: left; text-transform: uppercase; font-weight: 900; }
+    .betmgm-table td { padding: 12px; border-bottom: 1px solid #333; font-weight: 500; }
     </style>
 """, unsafe_allow_html=True)
 
@@ -91,12 +107,12 @@ def render_match(p1, p2, key, img_lookup, disabled=False):
             <div style="display: flex; justify-content: space-around; align-items: flex-start; margin-bottom: 15px;">
                 <div style="text-align: center; width: 45%;">
                     <img src="{img1}" style="width: 100%; max-width: 90px; border-radius: 10px; border: 1px solid #C4B454;">
-                    <p style="font-size: 0.85rem; margin-top:5px; font-weight:500; color:white;">{p1}</p>
+                    <p style="font-size: 0.85rem; margin-top:5px;">{p1}</p>
                 </div>
                 <div style="color: #C4B454; font-size: 1.4rem; font-weight: 900; margin-top: 30px;">VS</div>
                 <div style="text-align: center; width: 45%;">
                     <img src="{img2}" style="width: 100%; max-width: 90px; border-radius: 10px; border: 1px solid #C4B454;">
-                    <p style="font-size: 0.85rem; margin-top:5px; font-weight:500; color:white;">{p2}</p>
+                    <p style="font-size: 0.85rem; margin-top:5px;">{p2}</p>
                 </div>
             </div>
         </div>
@@ -148,28 +164,26 @@ with st.sidebar:
                 st.rerun()
             else: st.error("Invalid Credentials")
     else:
-        st.markdown(f"<p style='text-align:center;'>Logged in: <span style='color:#C4B454;'>{st.session_state['username']}</span></p>", unsafe_allow_html=True)
-        st.write("---")
+        st.markdown(f"<p style='text-align:center;'>Logged in as: <span style='color:#C4B454;'>{st.session_state['username']}</span></p>", unsafe_allow_html=True)
+        st.write("---") 
         
-        # NAVIGATION WITH HOLLOW ICONS
-        if st.button("▷ MATCHES"):
+        # Navigation Buttons
+        if st.button("▷  MATCHES"):
             st.session_state['current_page'] = "Matches"
-            
-        if st.button("✧ LEADERBOARD"):
+        if st.button("✧  LEADERBOARD"):
             st.session_state['current_page'] = "Leaderboard"
-            
         if st.session_state['username'].lower() == "domzy":
-            if st.button("⚙︎ ADMIN"):
+            if st.button("⚙︎  ADMIN"):
                 st.session_state['current_page'] = "Admin"
         
-        st.markdown("<br><br><br>", unsafe_allow_html=True)
+        st.markdown("<br><br>", unsafe_allow_html=True)
         if st.button("LOGOUT"):
             st.session_state['username'] = ""
             st.session_state['current_page'] = "Matches"
             st.rerun()
 
 ###############################################################################
-##### SECTION 5: MAIN LOGIC                                               #####
+##### SECTION 5: MAIN APP LOGIC                                           #####
 ###############################################################################
 if st.session_state['username'] != "":
     players_df = get_data("Players")
@@ -185,7 +199,7 @@ if st.session_state['username'] != "":
             
             st.markdown(f"<h1 style='text-align: center;'>📍 {night_data['Venue']}</h1>", unsafe_allow_html=True)
             st.markdown(f"<h2 style='text-align: center;'>{selected_night}</h2>", unsafe_allow_html=True)
-            st.markdown("<p style='text-align:center; font-weight:500;'>TIME UNTIL ENTRIES CLOSE</p>", unsafe_allow_html=True)
+            st.markdown("<p style='text-align:center;'>TIME UNTIL ENTRIES CLOSE</p>", unsafe_allow_html=True)
             st.markdown(get_countdown(cutoff_val), unsafe_allow_html=True)
             st.write("")
 
@@ -248,3 +262,4 @@ if st.session_state['username'] != "":
                 st.success("Results Updated!")
 else:
     st.markdown("<h1 style='text-align: center; margin-top: 100px;'>🎯 Welcome</h1>", unsafe_allow_html=True)
+    st.markdown("<p style='text-align: center;'>Please login in the sidebar to start.</p>", unsafe_allow_html=True)
