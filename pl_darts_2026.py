@@ -25,53 +25,63 @@ def get_data(worksheet):
     except: return pd.DataFrame()
 
 ###############################################################################
-##### SECTION 2: CSS - DARK THEME & UNIFORM BUTTONS                       #####
+##### SECTION 2: CSS - THE UNIFORM UI FIXES                                #####
 ###############################################################################
 st.markdown("""
     <style>
-    /* 1. Background */
+    /* 1. Main Background */
     .stApp { 
         background: linear-gradient(rgba(0,0,0,0.8), rgba(0,0,0,0.8)), 
                     url("https://i.postimg.cc/d1kXbbDk/2025PLFinal-Gen-View.jpg"); 
         background-size: cover; background-attachment: fixed; 
     }
     
-    /* 2. Sidebar */
+    /* 2. Sidebar Background & Border */
     [data-testid="stSidebar"], [data-testid="stSidebarContent"] {
         background-color: #111111 !important;
         border-right: 1px solid #C4B454;
     }
 
-    /* 3. Dark Dropdowns */
+    /* 3. Dark Dropdowns (Selectboxes) */
     div[data-baseweb="select"] > div {
         background-color: rgba(30, 30, 30, 0.9) !important;
         color: white !important;
         border: 1px solid #C4B454 !important;
     }
     ul[role="listbox"] { background-color: #1a1a1a !important; }
+    div[data-testid="stSelectbox"] label p { color: #C4B454 !important; font-weight: 500 !important; }
 
-    /* 4. Text Weights (500) */
+    /* 4. Text Weights & Colors (Matching preference 500) */
     h1, h2, h3 { color: #C4B454 !important; text-transform: uppercase; font-weight: 900 !important; }
     .stMarkdown p, .stText p, [data-testid="stWidgetLabel"] p { 
         color: white !important; 
         font-weight: 500 !important; 
     }
 
-    /* 5. UNIFORM GOLD BUTTONS */
-    /* This targets all buttons in the sidebar and main area */
-    div.stButton > button { 
+    /* 5. UNIFORM BUTTONS: Fixed 100% Width */
+    /* Targets sidebar buttons specifically to ensure they match each other */
+    [data-testid="stSidebar"] div.stButton > button { 
         background: #C4B454 !important; 
         color: #000000 !important; 
         font-weight: 500 !important; 
         border: none !important; 
         text-transform: uppercase;
-        width: 100% !important; /* Forces full width of container */
-        display: block;
+        width: 100% !important;
+        display: block !important;
         border-radius: 4px;
-        margin-bottom: 8px;
-        padding: 10px 0px;
+        margin-bottom: 10px;
+        padding: 10px 15px !important;
+        white-space: nowrap !important;
     }
-    div.stButton > button:hover { background: #e5d464 !important; }
+    
+    /* Main Area Buttons (Submit/Form) */
+    div.stButton > button {
+        background: #C4B454 !important;
+        color: #000000 !important;
+        font-weight: 500 !important;
+        border-radius: 4px;
+        text-transform: uppercase;
+    }
 
     /* 6. Match Cards */
     .pl-card { 
@@ -82,7 +92,7 @@ st.markdown("""
         margin-bottom: 15px; 
     }
 
-    /* 7. Tables */
+    /* 7. Leaderboard Table */
     .betmgm-table { width: 100%; border-collapse: collapse; background: rgba(20,20,20,0.9); border-radius: 10px; overflow: hidden; color: white; }
     .betmgm-table th { background: #C4B454; color: black; padding: 12px; text-align: left; text-transform: uppercase; font-weight: 900; }
     .betmgm-table td { padding: 12px; border-bottom: 1px solid #333; font-weight: 500; }
@@ -158,9 +168,9 @@ with st.sidebar:
             else: st.error("Invalid Credentials")
     else:
         st.markdown(f"<p style='text-align:center;'>Logged in: <span style='color:#C4B454;'>{st.session_state['username']}</span></p>", unsafe_allow_html=True)
-        st.write("") # Spacing
+        st.write("") 
         
-        # Hollowed Icons for Navigation
+        # NAVIGATION BUTTONS (Hollowed Icons)
         if st.button("▷ MATCHES"):
             st.session_state['current_page'] = "Matches"
         if st.button("🏆 LEADERBOARD"):
@@ -169,7 +179,7 @@ with st.sidebar:
             if st.button("⚙︎ ADMIN"):
                 st.session_state['current_page'] = "Admin"
         
-        st.markdown("<br><br>", unsafe_allow_html=True) # Push logout down
+        st.markdown("<br><br>", unsafe_allow_html=True)
         if st.button("LOGOUT"):
             st.session_state['username'] = ""
             st.session_state['current_page'] = "Matches"
@@ -236,8 +246,23 @@ if st.session_state['username'] != "":
 
     elif current_page == "Admin":
         st.title("⚙︎ Result Manager")
+        res_df = get_data("PL_Results")
         night_to_edit = st.selectbox("Update Night Results", admin_df['Night'].unique())
-        # (Admin logic continues...)
-
+        n_data = admin_df[admin_df['Night'] == night_to_edit].iloc[0]
+        
+        with st.form("admin_form"):
+            aq1 = st.selectbox("QF1 Winner", [n_data['QF1-P1'], n_data['QF1-P2']])
+            aq2 = st.selectbox("QF2 Winner", [n_data['QF2-P1'], n_data['QF2-P2']])
+            aq3 = st.selectbox("QF3 Winner", [n_data['QF3-P1'], n_data['QF3-P2']])
+            aq4 = st.selectbox("QF4 Winner", [n_data['QF4-P1'], n_data['QF4-P2']])
+            as1 = st.selectbox("SF1 Winner", [aq1, aq2])
+            as2 = st.selectbox("SF2 Winner", [aq3, aq4])
+            afn = st.selectbox("Overall Winner", [as1, as2])
+            
+            if st.form_submit_button("Save Winners"):
+                new_res = pd.DataFrame([{"Night": night_to_edit, "QF1": aq1, "QF2": aq2, "QF3": aq3, "QF4": aq4, "SF1": as1, "SF2": as2, "Final": afn}])
+                conn.update(spreadsheet=URL, worksheet="PL_Results", data=pd.concat([res_df[res_df['Night'] != night_to_edit], new_res]))
+                st.success("Results Updated!")
 else:
     st.markdown("<h1 style='text-align: center; margin-top: 100px;'>🎯 Welcome</h1>", unsafe_allow_html=True)
+    st.markdown("<p style='text-align: center; font-weight: 500;'>Please login in the sidebar to start.</p>", unsafe_allow_html=True)
