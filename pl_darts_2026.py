@@ -24,43 +24,35 @@ def get_data(worksheet):
     except: return pd.DataFrame()
 
 ###############################################################################
-##### SECTION 2: BOMP-PROOF STYLING (The Nuclear Fix)                     #####
+##### SECTION 2: STYLING (The Anti-White-Box CSS)                         #####
 ###############################################################################
 st.markdown("""
     <style>
-    /* 1. Main Background */
     .stApp { 
         background: linear-gradient(rgba(0,0,0,0.8), rgba(0,0,0,0.8)), 
                     url("https://i.postimg.cc/d1kXbbDk/2025PLFinal-Gen-View.jpg"); 
         background-size: cover; background-attachment: fixed; 
     }
-    
-    /* 2. Sidebar Base */
     [data-testid="stSidebar"], [data-testid="stSidebarContent"] {
         background-color: #111111 !important; border-right: 1px solid #C4B454;
     }
-
-    /* 3. THE NUCLEAR OPTION: Targeting the Menu IFrame and all children */
-    iframe[title="streamlit_option_menu.option_menu"] {
-        background-color: transparent !important;
-    }
     
-    /* This targets the internal container of the option menu component */
-    div[data-component-name="st_option_menu"] > div,
-    div[data-component-name="st_option_menu"] section,
-    div[data-component-name="st_option_menu"] ul,
-    div[data-component-name="st_option_menu"] li {
+    /* TARGETS THE COMPONENT WRAPPER TO FORCE TRANSPARENCY */
+    div[data-component-name="st_option_menu"] > div {
         background-color: transparent !important;
-        background: transparent !important;
         border: none !important;
         box-shadow: none !important;
     }
+    
+    /* REMOVES THE WHITE OVERLAY/GLOSS */
+    .nav-link {
+        background-color: transparent !important;
+    }
 
-    /* 4. Global Text & Headers */
     h1, h2, h3 { color: #C4B454 !important; text-transform: uppercase; font-weight: 900 !important; }
     .stMarkdown p, .stText p, [data-testid="stWidgetLabel"] p { color: white !important; }
     
-    /* 5. Countdown & Tables */
+    /* TIMER BOX STYLING */
     .timer-container { display: flex; justify-content: center; gap: 10px; margin-top: 20px; }
     .timer-box { 
         background: rgba(0,0,0,0.7); border: 2px solid #C4B454; border-radius: 10px;
@@ -103,14 +95,15 @@ with st.sidebar:
         if st.session_state['username'].lower() == "domzy":
             menu_options.append("Admin")
             
+        # THE FIX: Explicitly setting 'container' and 'nav-link' to transparent here
         selected_page = option_menu(
             menu_title=None, 
             options=menu_options,
             menu_icon="none",
             default_index=0,
             styles={
-                "container": {"background-color": "transparent !important", "padding": "0px", "border": "none"},
-                "nav-link": {"color": "white", "font-size": "14px", "text-align": "left", "margin": "5px 0px", "font-weight": "700", "text-transform": "uppercase", "background-color": "transparent"},
+                "container": {"background-color": "transparent !important", "padding": "0px", "border": "none !important", "margin": "0px"},
+                "nav-link": {"color": "white", "font-size": "14px", "text-align": "left", "margin": "5px 0px", "font-weight": "700", "text-transform": "uppercase", "background-color": "transparent !important"},
                 "nav-link-selected": {"background-color": "#C4B454", "color": "black", "font-weight": "900"},
             }
         )
