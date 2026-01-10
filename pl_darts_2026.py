@@ -24,83 +24,82 @@ def get_data(worksheet):
     except: return pd.DataFrame()
 
 ###############################################################################
-##### SECTION 2: BOLD STYLING & BOMB-PROOF MENU FIX                       #####
+##### SECTION 2: SURGICAL CSS & STYLE                                     #####
 ###############################################################################
 st.markdown("""
     <style>
-    /* 1. Main App Background */
+    /* 1. Main Background */
     .stApp { 
         background: linear-gradient(rgba(0,0,0,0.8), rgba(0,0,0,0.8)), 
                     url("https://i.postimg.cc/d1kXbbDk/2025PLFinal-Gen-View.jpg"); 
         background-size: cover; background-attachment: fixed; 
     }
     
-    /* 2. Sidebar Base Styling */
+    /* 2. Sidebar Base */
     [data-testid="stSidebar"], [data-testid="stSidebarContent"] {
         background-color: #111111 !important;
         border-right: 1px solid #C4B454;
     }
 
-    /* 3. THE MENU FIX: Targeting the IFrame and Container for Transparency */
-    iframe[title="streamlit_option_menu.option_menu"] {
-        background-color: transparent !important;
-    }
-
+    /* 3. THE MENU FIX: Stripping the light box from option_menu */
     div[data-component-name="st_option_menu"] > div {
         background-color: transparent !important;
         border: none !important;
         box-shadow: none !important;
     }
+    
+    .nav-pills {
+        background-color: transparent !important;
+    }
 
-    /* 4. RESTORING BOLD TEXT & HEADERS */
-    h1, h2, h3, h4 { 
-        color: #C4B454 !important; 
-        text-transform: uppercase; 
-        font-weight: 900 !important; 
-        letter-spacing: 1px;
-    }
+    /* 4. TEXT WEIGHT: Set to 500 to match Logout button */
+    h1, h2, h3 { color: #C4B454 !important; text-transform: uppercase; font-weight: 900 !important; }
     
-    .stMarkdown p, .stText p, [data-testid="stWidgetLabel"] p { 
+    .stMarkdown p, .stText p, [data-testid="stWidgetLabel"] p, .nav-link { 
         color: white !important; 
-        font-weight: 800 !important; 
+        font-weight: 500 !important; 
     }
-    
-    /* 5. TIMER BOXES */
+
+    /* Selected Menu Item */
+    .nav-link.active {
+        background-color: #C4B454 !important;
+        color: black !important;
+        font-weight: 700 !important;
+    }
+
+    /* 5. Timer & Cards */
     .timer-container { display: flex; justify-content: center; gap: 10px; margin-top: 20px; }
     .timer-box { 
-        background: rgba(0,0,0,0.8); border: 2px solid #C4B454; border-radius: 10px;
-        padding: 15px; width: 85px; text-align: center;
+        background: rgba(0,0,0,0.7); border: 2px solid #C4B454; border-radius: 10px;
+        padding: 15px; width: 80px; text-align: center;
     }
     .timer-val { font-size: 1.8rem; font-weight: 900; color: #C4B454; line-height: 1; }
-    .timer-label { font-size: 0.65rem; color: white; text-transform: uppercase; font-weight: 700; margin-top: 5px; }
-
-    /* 6. CARDS & BUTTONS */
-    .pl-card { 
-        border: 2px solid #C4B454; border-radius: 12px; 
-        background: rgba(20, 20, 20, 0.95); padding: 15px; margin-bottom: 15px; 
-    }
+    .timer-label { font-size: 0.6rem; color: white; text-transform: uppercase; margin-top: 5px; }
     
+    .pl-card { border: 1px solid #C4B454; border-radius: 12px; background: rgba(20, 20, 20, 0.95); padding: 15px; margin-bottom: 15px; }
+    
+    /* Logout/Global Button Styling */
     div.stButton > button { 
         background: #C4B454 !important; 
         color: #000000 !important; 
-        font-weight: 900 !important; 
+        font-weight: 500 !important; 
         border: none !important; 
-        width: 100% !important;
         text-transform: uppercase;
+        width: 100%;
     }
 
-    /* 7. LEADERBOARD TABLE */
+    /* Leaderboard Table */
     .betmgm-table { width: 100%; border-collapse: collapse; background: rgba(20,20,20,0.9); border-radius: 10px; overflow: hidden; color: white; }
     .betmgm-table th { background: #C4B454; color: black; padding: 12px; text-align: left; text-transform: uppercase; font-weight: 900; }
-    .betmgm-table td { padding: 12px; border-bottom: 1px solid #333; font-weight: 700; }
+    .betmgm-table td { padding: 12px; border-bottom: 1px solid #333; font-weight: 500; }
     </style>
 """, unsafe_allow_html=True)
 
 ###############################################################################
-##### SECTION 3: AUTHENTICATION & SIDEBAR MENU                            #####
+##### SECTION 3: AUTH & SIDEBAR                                           #####
 ###############################################################################
 with st.sidebar:
-    st.markdown("<h1 style='text-align: center; margin-bottom: 0;'>🎯 PL 2026</h1>", unsafe_allow_html=True)
+    st.title("🎯 PL 2026")
     
     if st.session_state['username'] == "":
         u_attempt = st.text_input("Username", key="login_user")
@@ -114,7 +113,7 @@ with st.sidebar:
             else: st.error("Invalid Credentials")
         selected_page = "Matches"
     else:
-        st.markdown(f"<p style='text-align:center;'>Logged in as: <span style='color:#C4B454;'>{st.session_state['username']}</span></p>", unsafe_allow_html=True)
+        st.write(f"Logged in as: **{st.session_state['username']}**")
         
         menu_options = ["Matches", "Leaderboard"]
         if st.session_state['username'].lower() == "domzy":
@@ -126,23 +125,11 @@ with st.sidebar:
             icons=["play-btn", "trophy", "gear"],
             menu_icon="none",
             default_index=0,
-            styles={
-                "container": {"background-color": "transparent !important", "padding": "0px"},
-                "nav-link": {
-                    "color": "white", 
-                    "font-size": "14px", 
-                    "text-align": "left", 
-                    "margin": "5px 0px", 
-                    "font-weight": "800", 
-                    "text-transform": "uppercase", 
-                    "background-color": "transparent"
-                },
-                "nav-link-selected": {"background-color": "#C4B454", "color": "black", "font-weight": "900"},
-            }
+            styles={} # Managed by CSS in Section 2
         )
         
         st.write("---")
-        if st.button("Logout"):
+        if st.button("LOGOUT"):
             st.session_state['username'] = ""
             st.rerun()
 
@@ -156,13 +143,13 @@ def render_match(p1, p2, key, img_lookup, disabled=False):
         <div class="pl-card">
             <div style="display: flex; justify-content: space-around; align-items: flex-start; margin-bottom: 15px;">
                 <div style="text-align: center; width: 45%;">
-                    <img src="{img1}" style="width: 100%; max-width: 90px; border-radius: 10px; border: 1px solid #C4B454;">
-                    <p style="font-size: 0.9rem; margin-top:5px; font-weight:900; color:white;">{p1}</p>
+                    <img src="{img1}" style="width: 100%; max-width: 90px; border-radius: 10px;">
+                    <p style="font-size: 0.85rem; margin:0; font-weight:500; color:white;">{p1}</p>
                 </div>
-                <div style="color: #C4B454; font-size: 1.6rem; font-weight: 900; margin-top: 30px;">VS</div>
+                <div style="color: #C4B454; font-size: 1.4rem; font-weight: 900; margin-top: 30px;">VS</div>
                 <div style="text-align: center; width: 45%;">
-                    <img src="{img2}" style="width: 100%; max-width: 90px; border-radius: 10px; border: 1px solid #C4B454;">
-                    <p style="font-size: 0.9rem; margin-top:5px; font-weight:900; color:white;">{p2}</p>
+                    <img src="{img2}" style="width: 100%; max-width: 90px; border-radius: 10px;">
+                    <p style="font-size: 0.85rem; margin:0; font-weight:500; color:white;">{p2}</p>
                 </div>
             </div>
         </div>
@@ -204,7 +191,7 @@ if st.session_state['username'] != "":
             
             st.markdown(f"<h1 style='text-align: center;'>📍 {night_data['Venue']}</h1>", unsafe_allow_html=True)
             st.markdown(f"<h2 style='text-align: center;'>{selected_night}</h2>", unsafe_allow_html=True)
-            st.markdown("<p style='text-align:center; font-weight:900; margin-bottom:0;'>TIME UNTIL ENTRIES CLOSE</p>", unsafe_allow_html=True)
+            st.markdown("<p style='text-align:center; font-weight:500; margin-bottom:0;'>TIME UNTIL ENTRIES CLOSE</p>", unsafe_allow_html=True)
             st.markdown(get_countdown(cutoff_val), unsafe_allow_html=True)
             st.write("")
 
@@ -285,5 +272,5 @@ if st.session_state['username'] != "":
             conn.update(spreadsheet=URL, worksheet="PL_Leaderboard", data=new_lb)
             st.success("Leaderboard Synced!")
 else:
-    st.markdown("<h1 style='text-align: center; margin-top: 100px;'>🎯 Welcome to the PL 2026 Predictor</h1>", unsafe_allow_html=True)
-    st.markdown("<p style='text-align: center; font-weight: 800;'>Please log in via the sidebar to view matches and enter predictions.</p>", unsafe_allow_html=True)
+    st.markdown("<h1 style='text-align: center; margin-top: 50px;'>🎯 Welcome</h1>", unsafe_allow_html=True)
+    st.markdown("<p style='text-align: center; font-weight: 500;'>Please login in the sidebar to enter your predictions.</p>", unsafe_allow_html=True)
