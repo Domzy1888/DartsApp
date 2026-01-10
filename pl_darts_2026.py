@@ -35,34 +35,6 @@ st.markdown("""
         background-color: rgba(15, 15, 15, 0.98) !important;
         border-right: 1px solid #C4B454;
     }
-
-    /* THE SLEDGEHAMMER NAVIGATION FIX */
-    /* 1. Target the button container when closed */
-    [data-testid="stSidebarCollapse"], [data-testid="collapsedControl"] {
-        background-color: #C4B454 !important;
-        border-radius: 0 10px 10px 0 !important;
-        width: 45px !important;
-        height: 45px !important;
-        top: 10px !important;
-    }
-
-    /* 2. Target the actual icon inside the button to be Black */
-    [data-testid="stSidebarCollapse"] svg, 
-    [data-testid="collapsedControl"] svg,
-    button[kind="headerNoContext"] svg {
-        fill: #000000 !important;
-        color: #000000 !important;
-        width: 30px !important;
-        height: 30px !important;
-    }
-
-    /* 3. Target the close button inside the dark sidebar to be Gold */
-    [data-testid="sidebar-close-button"] svg {
-        fill: #C4B454 !important;
-        width: 30px !important;
-        height: 30px !important;
-    }
-
     [data-testid="stSidebarContent"] { color: white !important; }
     html, body, [class*="st-"] p, label, .stMarkdown, .stText, [data-testid="stWidgetLabel"] p {
         color: white !important; font-weight: 500 !important;
