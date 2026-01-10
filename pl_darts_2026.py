@@ -24,37 +24,52 @@ def get_data(worksheet):
     except: return pd.DataFrame()
 
 ###############################################################################
-##### SECTION 2: SURGICAL CSS - KILLING THE WHITE BOX                      #####
+##### SECTION 2: THE "NUCLEAR" UI FIXES                                    #####
 ###############################################################################
 st.markdown("""
     <style>
-    /* 1. Main Background */
+    /* 1. Main App Background */
     .stApp { 
         background: linear-gradient(rgba(0,0,0,0.8), rgba(0,0,0,0.8)), 
                     url("https://i.postimg.cc/d1kXbbDk/2025PLFinal-Gen-View.jpg"); 
         background-size: cover; background-attachment: fixed; 
     }
     
-    /* 2. Sidebar Base */
+    /* 2. Sidebar Background */
     [data-testid="stSidebar"], [data-testid="stSidebarContent"] {
         background-color: #111111 !important;
         border-right: 1px solid #C4B454;
     }
 
-    /* 3. THE FIX: Target the internal IFrame and the menu container */
-    /* This forces the white 'card' to disappear */
-    iframe[title="streamlit_option_menu.option_menu"] {
+    /* 3. THE MENU FIX: Removing the White Container */
+    /* Target the component container specifically */
+    div[data-component-name="st_option_menu"] {
         background-color: transparent !important;
     }
-
-    div[data-component-name="st_option_menu"] > div {
+    
+    div[data-component-name="st_option_menu"] iframe {
         background-color: transparent !important;
-        background: transparent !important;
-        border: none !important;
-        box-shadow: none !important;
+        color-scheme: dark !important;
     }
 
-    /* 4. TEXT WEIGHT: Matching the Logout button (500) */
+    /* 4. DROPDOWN (SELECTBOX) FIX: Dark Background + White Text */
+    div[data-baseweb="select"] > div {
+        background-color: rgba(30, 30, 30, 0.9) !important;
+        color: white !important;
+        border: 1px solid #C4B454 !important;
+    }
+    
+    /* Ensure dropdown list items are also dark */
+    ul[role="listbox"] {
+        background-color: #1a1a1a !important;
+    }
+    
+    div[data-testid="stSelectbox"] label p {
+        color: #C4B454 !important;
+        font-weight: 500 !important;
+    }
+
+    /* 5. TEXT WEIGHT & COLOR (Weight 500 for prose) */
     h1, h2, h3 { color: #C4B454 !important; text-transform: uppercase; font-weight: 900 !important; }
     
     .stMarkdown p, .stText p, [data-testid="stWidgetLabel"] p { 
@@ -62,7 +77,7 @@ st.markdown("""
         font-weight: 500 !important; 
     }
 
-    /* 5. RESTORE GOLD BUTTONS (No more red) */
+    /* 6. BUTTON STYLING (GOLD #C4B454) */
     div.stButton > button { 
         background: #C4B454 !important; 
         color: #000000 !important; 
@@ -70,10 +85,19 @@ st.markdown("""
         border: none !important; 
         text-transform: uppercase;
         width: 100%;
+        border-radius: 8px;
     }
     
-    /* 6. Cards & Tables */
-    .pl-card { border: 1px solid #C4B454; border-radius: 12px; background: rgba(20, 20, 20, 0.95); padding: 15px; margin-bottom: 15px; }
+    /* 7. CARDS */
+    .pl-card { 
+        border: 1px solid #C4B454; 
+        border-radius: 12px; 
+        background: rgba(20, 20, 20, 0.95); 
+        padding: 15px; 
+        margin-bottom: 15px; 
+    }
+
+    /* Leaderboard Table */
     .betmgm-table { width: 100%; border-collapse: collapse; background: rgba(20,20,20,0.9); border-radius: 10px; overflow: hidden; color: white; }
     .betmgm-table th { background: #C4B454; color: black; padding: 12px; text-align: left; text-transform: uppercase; font-weight: 900; }
     .betmgm-table td { padding: 12px; border-bottom: 1px solid #333; font-weight: 500; }
@@ -84,7 +108,7 @@ st.markdown("""
 ##### SECTION 3: AUTH & SIDEBAR                                           #####
 ###############################################################################
 with st.sidebar:
-    st.markdown("<h1 style='text-align: center;'>🎯 PL 2026</h1>", unsafe_allow_html=True)
+    st.markdown("<h1 style='text-align: center; margin-bottom: 0;'>🎯 PL 2026</h1>", unsafe_allow_html=True)
     
     if st.session_state['username'] == "":
         u_attempt = st.text_input("Username", key="login_user")
@@ -98,7 +122,7 @@ with st.sidebar:
             else: st.error("Invalid Credentials")
         selected_page = "Matches"
     else:
-        st.write(f"Logged in as: **{st.session_state['username']}**")
+        st.markdown(f"<p style='text-align:center;'>Logged in as: <span style='color:#C4B454;'>{st.session_state['username']}</span></p>", unsafe_allow_html=True)
         
         menu_options = ["Matches", "Leaderboard"]
         if st.session_state['username'].lower() == "domzy":
@@ -111,7 +135,7 @@ with st.sidebar:
             menu_icon="none",
             default_index=0,
             styles={
-                "container": {"background-color": "transparent !important", "padding": "0px"},
+                "container": {"background-color": "transparent !important", "padding": "0px", "border": "none !important"},
                 "nav-link": {
                     "color": "white", 
                     "font-weight": "500", 
@@ -137,13 +161,13 @@ def render_match(p1, p2, key, img_lookup, disabled=False):
         <div class="pl-card">
             <div style="display: flex; justify-content: space-around; align-items: flex-start; margin-bottom: 15px;">
                 <div style="text-align: center; width: 45%;">
-                    <img src="{img1}" style="width: 100%; max-width: 90px; border-radius: 10px;">
-                    <p style="font-size: 0.85rem; margin:0; font-weight:500; color:white;">{p1}</p>
+                    <img src="{img1}" style="width: 100%; max-width: 90px; border-radius: 10px; border: 1px solid #C4B454;">
+                    <p style="font-size: 0.85rem; margin-top:5px; font-weight:500; color:white;">{p1}</p>
                 </div>
                 <div style="color: #C4B454; font-size: 1.4rem; font-weight: 900; margin-top: 30px;">VS</div>
                 <div style="text-align: center; width: 45%;">
-                    <img src="{img2}" style="width: 100%; max-width: 90px; border-radius: 10px;">
-                    <p style="font-size: 0.85rem; margin:0; font-weight:500; color:white;">{p2}</p>
+                    <img src="{img2}" style="width: 100%; max-width: 90px; border-radius: 10px; border: 1px solid #C4B454;">
+                    <p style="font-size: 0.85rem; margin-top:5px; font-weight:500; color:white;">{p2}</p>
                 </div>
             </div>
         </div>
@@ -161,17 +185,17 @@ def get_countdown(target_date_str):
             minutes, seconds = divmod(remainder, 60)
             return f"""
                 <div style='display: flex; justify-content: center; gap: 10px; margin-top: 20px;'>
-                    <div style='background: rgba(0,0,0,0.7); border: 2px solid #C4B454; border-radius: 10px; padding: 15px; width: 80px; text-align: center;'>
-                        <div style='font-size: 1.8rem; font-weight: 900; color: #C4B454;'>{days}</div>
-                        <div style='font-size: 0.6rem; color: white;'>DAYS</div>
+                    <div style='background: rgba(0,0,0,0.8); border: 2px solid #C4B454; border-radius: 10px; padding: 10px; width: 70px; text-align: center;'>
+                        <div style='font-size: 1.5rem; font-weight: 900; color: #C4B454;'>{days}</div>
+                        <div style='font-size: 0.5rem; color: white;'>DAYS</div>
                     </div>
-                    <div style='background: rgba(0,0,0,0.7); border: 2px solid #C4B454; border-radius: 10px; padding: 15px; width: 80px; text-align: center;'>
-                        <div style='font-size: 1.8rem; font-weight: 900; color: #C4B454;'>{hours:02d}</div>
-                        <div style='font-size: 0.6rem; color: white;'>HRS</div>
+                    <div style='background: rgba(0,0,0,0.8); border: 2px solid #C4B454; border-radius: 10px; padding: 10px; width: 70px; text-align: center;'>
+                        <div style='font-size: 1.5rem; font-weight: 900; color: #C4B454;'>{hours:02d}</div>
+                        <div style='font-size: 0.5rem; color: white;'>HRS</div>
                     </div>
-                    <div style='background: rgba(0,0,0,0.7); border: 2px solid #C4B454; border-radius: 10px; padding: 15px; width: 80px; text-align: center;'>
-                        <div style='font-size: 1.8rem; font-weight: 900; color: #C4B454;'>{minutes:02d}</div>
-                        <div style='font-size: 0.6rem; color: white;'>MINS</div>
+                    <div style='background: rgba(0,0,0,0.8); border: 2px solid #C4B454; border-radius: 10px; padding: 10px; width: 70px; text-align: center;'>
+                        <div style='font-size: 1.5rem; font-weight: 900; color: #C4B454;'>{minutes:02d}</div>
+                        <div style='font-size: 0.5rem; color: white;'>MINS</div>
                     </div>
                 </div>
             """
@@ -233,27 +257,6 @@ if st.session_state['username'] != "":
             for i, row in enumerate(lb_df.itertuples(), 1):
                 html += f"<tr><td>{i}</td><td>{row.Username}</td><td>{int(row.Total)}</td></tr>"
             st.markdown(html + "</table>", unsafe_allow_html=True)
-
-    elif selected_page == "Admin":
-        st.title("⚙️ Result Manager")
-        res_df = get_data("PL_Results")
-        night_to_edit = st.selectbox("Update Night Results", admin_df['Night'].unique())
-        n_data = admin_df[admin_df['Night'] == night_to_edit].iloc[0]
-        
-        with st.form("admin_form"):
-            c1, c2 = st.columns(2)
-            aq1 = c1.selectbox("QF1 Winner", [n_data['QF1-P1'], n_data['QF1-P2']])
-            aq2 = c2.selectbox("QF2 Winner", [n_data['QF2-P1'], n_data['QF2-P2']])
-            aq3 = c1.selectbox("QF3 Winner", [n_data['QF3-P1'], n_data['QF3-P2']])
-            aq4 = c2.selectbox("QF4 Winner", [n_data['QF4-P1'], n_data['QF4-P2']])
-            as1 = c1.selectbox("SF1 Winner", [aq1, aq2])
-            as2 = c2.selectbox("SF2 Winner", [aq3, aq4])
-            afn = st.selectbox("Overall Winner", [as1, as2])
-            
-            if st.form_submit_button("Save Winners"):
-                new_res = pd.DataFrame([{"Night": night_to_edit, "QF1": aq1, "QF2": aq2, "QF3": aq3, "QF4": aq4, "SF1": as1, "SF2": as2, "Final": afn}])
-                conn.update(spreadsheet=URL, worksheet="PL_Results", data=pd.concat([res_df[res_df['Night'] != night_to_edit], new_res]))
-                st.success("Results Updated!")
 else:
-    st.markdown("<h1 style='text-align: center; margin-top: 50px;'>🎯 Welcome</h1>", unsafe_allow_html=True)
-    st.markdown("<p style='text-align: center; font-weight: 500;'>Please login in the sidebar to enter your predictions.</p>", unsafe_allow_html=True)
+    st.markdown("<h1 style='text-align: center; margin-top: 100px;'>🎯 Welcome</h1>", unsafe_allow_html=True)
+    st.markdown("<p style='text-align: center; font-weight: 500;'>Please login in the sidebar.</p>", unsafe_allow_html=True)
