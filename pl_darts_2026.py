@@ -24,35 +24,49 @@ def get_data(worksheet):
     except: return pd.DataFrame()
 
 ###############################################################################
-##### SECTION 2: STYLING (The Anti-White-Box CSS)                         #####
+##### SECTION 2: THE "BOMB-PROOF" STYLE FIX                               #####
 ###############################################################################
 st.markdown("""
     <style>
+    /* 1. Main Background */
     .stApp { 
         background: linear-gradient(rgba(0,0,0,0.8), rgba(0,0,0,0.8)), 
                     url("https://i.postimg.cc/d1kXbbDk/2025PLFinal-Gen-View.jpg"); 
         background-size: cover; background-attachment: fixed; 
     }
+    
+    /* 2. Sidebar Base */
     [data-testid="stSidebar"], [data-testid="stSidebarContent"] {
         background-color: #111111 !important; border-right: 1px solid #C4B454;
     }
-    
-    /* TARGETS THE COMPONENT WRAPPER TO FORCE TRANSPARENCY */
+
+    /* 3. MENU FIX: Removes white card and corner highlights */
     div[data-component-name="st_option_menu"] > div {
         background-color: transparent !important;
         border: none !important;
         box-shadow: none !important;
     }
     
-    /* REMOVES THE WHITE OVERLAY/GLOSS */
+    /* Force unselected links to be transparent with white text */
     .nav-link {
         background-color: transparent !important;
+        color: white !important;
+        font-weight: 700 !important;
+        text-transform: uppercase !important;
     }
 
+    /* Force SELECTED link to be GOLD with BLACK text */
+    .nav-link.active {
+        background-color: #C4B454 !important;
+        color: black !important;
+        font-weight: 900 !important;
+    }
+
+    /* 4. Global Text & Headers */
     h1, h2, h3 { color: #C4B454 !important; text-transform: uppercase; font-weight: 900 !important; }
     .stMarkdown p, .stText p, [data-testid="stWidgetLabel"] p { color: white !important; }
     
-    /* TIMER BOX STYLING */
+    /* 5. Countdown & Tables */
     .timer-container { display: flex; justify-content: center; gap: 10px; margin-top: 20px; }
     .timer-box { 
         background: rgba(0,0,0,0.7); border: 2px solid #C4B454; border-radius: 10px;
@@ -95,16 +109,14 @@ with st.sidebar:
         if st.session_state['username'].lower() == "domzy":
             menu_options.append("Admin")
             
-        # THE FIX: Explicitly setting 'container' and 'nav-link' to transparent here
         selected_page = option_menu(
             menu_title=None, 
             options=menu_options,
             menu_icon="none",
             default_index=0,
             styles={
-                "container": {"background-color": "transparent !important", "padding": "0px", "border": "none !important", "margin": "0px"},
-                "nav-link": {"color": "white", "font-size": "14px", "text-align": "left", "margin": "5px 0px", "font-weight": "700", "text-transform": "uppercase", "background-color": "transparent !important"},
-                "nav-link-selected": {"background-color": "#C4B454", "color": "black", "font-weight": "900"},
+                "container": {"background-color": "transparent", "padding": "0px"},
+                "nav-link": {"background-color": "transparent"},
             }
         )
         
