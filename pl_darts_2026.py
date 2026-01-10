@@ -144,7 +144,7 @@ def render_match(p1, p2, key, img_lookup, disabled=False):
 
 # 5. SIDEBAR
 with st.sidebar:
-    st.image("https://i.postimg.cc/8kr9Yqnx/darts-logo-big.png", use_container_width=True)
+    st.image("https://i.postimg.cc/8kr9Yqnx/darts-logo-big.png", width='stretch')
     st.markdown("<h1 style='text-align: center; font-size: 1.5rem;'>MATCH PREDICTOR</h1>", unsafe_allow_html=True)
 
     if st.session_state['username'] == "":
@@ -245,7 +245,7 @@ else:
     # Centering the logo using columns
     col1, col2, col3 = st.columns([1, 1, 1])
     with col2:
-        st.image("https://i.postimg.cc/8kr9Yqnx/darts-logo-big.png", use_container_width=True)
+        st.image("https://i.postimg.cc/8kr9Yqnx/darts-logo-big.png", width='stretch')
     
     st.markdown("<h1 style='text-align: center; margin-top: -20px;'>WELCOME</h1>", unsafe_allow_html=True)
     st.markdown("<p style='text-align: center;'>Please login in the sidebar to view matches and enter predictions.</p>", unsafe_allow_html=True)
