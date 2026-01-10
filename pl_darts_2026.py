@@ -17,20 +17,24 @@ if 'current_page' not in st.session_state:
 conn = st.connection("gsheets", type=GSheetsConnection)
 URL = st.secrets["connections"]["gsheets"]["spreadsheet"]
 
-@st.cache_data(ttl=2)
+# FIX: Increased TTL to 600 (10 mins) to prevent Google Sheets Quota errors
+@st.cache_data(ttl=600)
 def get_data(worksheet):
     try:
         df = conn.read(spreadsheet=URL, worksheet=worksheet, ttl=0)
         df = df.dropna(how='all')
-        # CLEANER: Remove trailing spaces from column names to prevent KeyErrors
         df.columns = df.columns.str.strip()
         return df
     except Exception as e:
-        st.error(f"Error loading {worksheet}: {e}")
+        # If quota is hit, show a friendlier warning
+        if "429" in str(e):
+            st.warning("Refresh limit reached. Please wait 1 minute.")
+        else:
+            st.error(f"Error loading {worksheet}")
         return pd.DataFrame()
 
 ###############################################################################
-##### SECTION 2: CSS - THE WHITE TEXT & UI FIXES                          #####
+##### SECTION 2: CSS - BUTTON & TEXT FIXES                                #####
 ###############################################################################
 st.markdown("""
     <style>
@@ -41,38 +45,40 @@ st.markdown("""
         background-size: cover; background-attachment: fixed; 
     }
     
-    /* 2. GLOBAL TEXT OVERRIDE: Forces White & 500 Weight Everywhere */
+    /* 2. Global Text Force White */
     html, body, [class*="st-"] p, label, .stMarkdown, .stText, [data-testid="stWidgetLabel"] p {
         color: white !important;
         font-weight: 500 !important;
     }
 
-    /* 3. Headers - Gold & Heavy */
-    h1, h2, h3 { 
-        color: #C4B454 !important; 
-        text-transform: uppercase; 
-        font-weight: 900 !important; 
-    }
+    /* 3. Headers */
+    h1, h2, h3 { color: #C4B454 !important; text-transform: uppercase; font-weight: 900 !important; }
 
-    /* 4. Sidebar Background & Border */
+    /* 4. Sidebar */
     [data-testid="stSidebar"], [data-testid="stSidebarContent"] {
         background-color: #111111 !important;
         border-right: 1px solid #C4B454;
     }
 
-    /* 5. Sidebar Buttons */
-    [data-testid="stSidebar"] div.stButton > button { 
-        background: #C4B454 !important; 
-        color: #000000 !important; 
-        font-weight: 600 !important; 
-        border: none !important; 
-        text-transform: uppercase;
+    /* 5. FIX: BUTTON COLORING (Gold Background, Black Text) */
+    /* This targets sidebar AND main buttons to prevent white-on-white */
+    div.stButton > button {
+        background-color: #C4B454 !important;
+        color: #000000 !important;
+        font-weight: 700 !important;
+        border: none !important;
         width: 100% !important;
+        text-transform: uppercase;
         border-radius: 4px;
-        margin-bottom: 8px;
+        height: 45px;
     }
     
-    /* 6. Dropdowns (Selectboxes) */
+    div.stButton > button:hover {
+        background-color: #e5d464 !important;
+        color: #000000 !important;
+    }
+
+    /* 6. Dropdowns */
     div[data-baseweb="select"] > div {
         background-color: rgba(30, 30, 30, 0.9) !important;
         color: white !important;
@@ -87,11 +93,6 @@ st.markdown("""
         padding: 15px; 
         margin-bottom: 15px; 
     }
-
-    /* 8. Leaderboard Table */
-    .betmgm-table { width: 100%; border-collapse: collapse; background: rgba(20,20,20,0.9); border-radius: 10px; overflow: hidden; color: white; }
-    .betmgm-table th { background: #C4B454; color: black; padding: 12px; text-align: left; text-transform: uppercase; font-weight: 900; }
-    .betmgm-table td { padding: 12px; border-bottom: 1px solid #333; font-weight: 500; }
     </style>
 """, unsafe_allow_html=True)
 
@@ -160,11 +161,9 @@ with st.sidebar:
             if not u_df.empty and 'Username' in u_df.columns:
                 match = u_df[(u_df['Username'].astype(str) == str(u_attempt)) & (u_df['Password'].astype(str) == str(p_attempt))]
                 if not match.empty:
-                    st.session_state['username'] = u_attempt
+                    st.session_state['username'] = str(u_attempt)
                     st.rerun()
                 else: st.error("Invalid Credentials")
-            else:
-                st.error("User database not found or column 'Username' missing.")
     else:
         st.markdown(f"<p style='text-align:center;'>Logged in as: <span style='color:#C4B454;'>{st.session_state['username']}</span></p>", unsafe_allow_html=True)
         st.write("---") 
@@ -225,6 +224,7 @@ if st.session_state['username'] != "":
                     fin = render_match(s1, s2, "fin", img_lookup, has_submitted)
 
                     if fin != "Select Winner" and not has_submitted:
+                        # Submit Button is now Gold with Black text due to CSS
                         if st.button("SUBMIT PREDICTIONS"):
                             new_row = pd.DataFrame([{"Timestamp": datetime.now(), "Username": st.session_state['username'], "Night": selected_night, "QF1": q1, "QF2": q2, "QF3": q3, "QF4": q4, "SF1": s1, "SF2": s2, "Final": fin}])
                             conn.update(spreadsheet=URL, worksheet="User_Submissions", data=pd.concat([subs_df, new_row]))
@@ -237,10 +237,7 @@ if st.session_state['username'] != "":
         lb_df = get_data("PL_Leaderboard")
         if not lb_df.empty:
             lb_df = lb_df.sort_values(by="Total", ascending=False)
-            html = "<table class='betmgm-table'><tr><th>Rank</th><th>User</th><th>Points</th></tr>"
-            for i, row in enumerate(lb_df.itertuples(), 1):
-                html += f"<tr><td>{i}</td><td>{row.Username}</td><td>{int(row.Total)}</td></tr>"
-            st.markdown(html + "</table>", unsafe_allow_html=True)
+            st.dataframe(lb_df, use_container_width=True, hide_index=True)
 
     elif current_page == "Admin":
         st.title("⚙︎ Result Manager")
