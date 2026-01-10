@@ -6,9 +6,12 @@ from datetime import datetime
 from streamlit_option_menu import option_menu
 
 ###############################################################################
-##### SECTION 1: PAGE CONFIGURATION                                       #####
+##### SECTION 1: PAGE CONFIGURATION & TIMER                               #####
 ###############################################################################
 st.set_page_config(page_title="PDC PL Predictor 2026", page_icon="🎯", layout="wide")
+
+# Set the date for the next match night here
+TARGET_DATE = datetime(2026, 2, 5, 19, 0) 
 
 if 'username' not in st.session_state:
     st.session_state['username'] = ""
@@ -27,7 +30,7 @@ def get_data(worksheet):
     except: return pd.DataFrame()
 
 ###############################################################################
-##### SECTION 3: STYLING                                                  #####
+##### SECTION 3: STYLING (The CSS Fixes)                                  #####
 ###############################################################################
 st.markdown("""
     <style>
@@ -39,16 +42,21 @@ st.markdown("""
     [data-testid="stSidebar"], [data-testid="stSidebarContent"] {
         background-color: #111111 !important; border-right: 1px solid #C4B454;
     }
+    
+    /* REMOVE LIGHT BOX & BORDER FROM OPTION MENU */
     div[data-component-name="st_option_menu"] > div {
         background-color: transparent !important;
         border: none !important;
         box-shadow: none !important;
     }
+
     h1, h2, h3 { color: #C4B454 !important; text-transform: uppercase; font-weight: 900 !important; }
     .stMarkdown p, .stText p, [data-testid="stWidgetLabel"] p { color: white !important; }
+    
     .betmgm-table { width: 100%; border-collapse: collapse; background: rgba(20,20,20,0.9); border-radius: 10px; overflow: hidden; color: white; }
     .betmgm-table th { background: #C4B454; color: black; padding: 12px; text-align: left; text-transform: uppercase; font-weight: 900; }
     .betmgm-table td { padding: 12px; border-bottom: 1px solid #333; }
+    
     .pl-card { border: 1px solid #C4B454; border-radius: 12px; background: rgba(20, 20, 20, 0.95); padding: 15px; margin-bottom: 15px; }
     div[data-baseweb="select"] > div { background-color: #1c1c1c !important; color: white !important; border: 1px solid #C4B454 !important; }
     div.stButton > button { background: #C4B454 !important; color: #000000 !important; font-weight: 900 !important; border: none !important; width: 100% !important; }
@@ -61,6 +69,20 @@ st.markdown("""
 with st.sidebar:
     st.title("🎯 PL 2026")
     
+    # --- COUNTDOWN TIMER ---
+    now = datetime.now()
+    diff = TARGET_DATE - now
+    if diff.total_seconds() > 0:
+        days = diff.days
+        hours, remainder = divmod(diff.seconds, 3600)
+        minutes, seconds = divmod(remainder, 60)
+        st.markdown(f"**NEXT MATCH IN:**")
+        st.markdown(f"### {days}d {hours}h {minutes}m")
+    else:
+        st.markdown("### 🎯 MATCH LIVE!")
+    
+    st.write("---")
+
     if st.session_state['username'] == "":
         u_attempt = st.text_input("Username", key="login_user")
         p_attempt = st.text_input("Password", type="password", key="login_pass")
@@ -75,7 +97,6 @@ with st.sidebar:
     else:
         st.write(f"Logged in as: **{st.session_state['username']}**")
         
-        # FIXED ADMIN LOGIC: Checking for your specific username
         menu_options = ["Matches", "Leaderboard"]
         if st.session_state['username'].lower() == "domzy":
             menu_options.append("Admin")
@@ -86,7 +107,7 @@ with st.sidebar:
             menu_icon="none",
             default_index=0,
             styles={
-                "container": {"background-color": "transparent", "padding": "0px"},
+                "container": {"background-color": "#111111", "padding": "0px", "border": "none"},
                 "nav-link": {"color": "white", "font-size": "14px", "text-align": "left", "margin": "5px 0px", "font-weight": "700", "text-transform": "uppercase"},
                 "nav-link-selected": {"background-color": "#C4B454", "color": "black", "font-weight": "900"},
             }
