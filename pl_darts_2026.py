@@ -24,7 +24,7 @@ def get_data(worksheet):
     except: return pd.DataFrame()
 
 ###############################################################################
-##### SECTION 2: SURGICAL CSS & STYLE                                     #####
+##### SECTION 2: SURGICAL CSS - KILLING THE WHITE BOX                      #####
 ###############################################################################
 st.markdown("""
     <style>
@@ -41,44 +41,28 @@ st.markdown("""
         border-right: 1px solid #C4B454;
     }
 
-    /* 3. THE MENU FIX: Stripping the light box from option_menu */
-    div[data-component-name="st_option_menu"] > div {
-        background-color: transparent !important;
-        border: none !important;
-        box-shadow: none !important;
-    }
-    
-    .nav-pills {
+    /* 3. THE FIX: Target the internal IFrame and the menu container */
+    /* This forces the white 'card' to disappear */
+    iframe[title="streamlit_option_menu.option_menu"] {
         background-color: transparent !important;
     }
 
-    /* 4. TEXT WEIGHT: Set to 500 to match Logout button */
+    div[data-component-name="st_option_menu"] > div {
+        background-color: transparent !important;
+        background: transparent !important;
+        border: none !important;
+        box-shadow: none !important;
+    }
+
+    /* 4. TEXT WEIGHT: Matching the Logout button (500) */
     h1, h2, h3 { color: #C4B454 !important; text-transform: uppercase; font-weight: 900 !important; }
     
-    .stMarkdown p, .stText p, [data-testid="stWidgetLabel"] p, .nav-link { 
+    .stMarkdown p, .stText p, [data-testid="stWidgetLabel"] p { 
         color: white !important; 
         font-weight: 500 !important; 
     }
 
-    /* Selected Menu Item */
-    .nav-link.active {
-        background-color: #C4B454 !important;
-        color: black !important;
-        font-weight: 700 !important;
-    }
-
-    /* 5. Timer & Cards */
-    .timer-container { display: flex; justify-content: center; gap: 10px; margin-top: 20px; }
-    .timer-box { 
-        background: rgba(0,0,0,0.7); border: 2px solid #C4B454; border-radius: 10px;
-        padding: 15px; width: 80px; text-align: center;
-    }
-    .timer-val { font-size: 1.8rem; font-weight: 900; color: #C4B454; line-height: 1; }
-    .timer-label { font-size: 0.6rem; color: white; text-transform: uppercase; margin-top: 5px; }
-    
-    .pl-card { border: 1px solid #C4B454; border-radius: 12px; background: rgba(20, 20, 20, 0.95); padding: 15px; margin-bottom: 15px; }
-    
-    /* Logout/Global Button Styling */
+    /* 5. RESTORE GOLD BUTTONS (No more red) */
     div.stButton > button { 
         background: #C4B454 !important; 
         color: #000000 !important; 
@@ -87,8 +71,9 @@ st.markdown("""
         text-transform: uppercase;
         width: 100%;
     }
-
-    /* Leaderboard Table */
+    
+    /* 6. Cards & Tables */
+    .pl-card { border: 1px solid #C4B454; border-radius: 12px; background: rgba(20, 20, 20, 0.95); padding: 15px; margin-bottom: 15px; }
     .betmgm-table { width: 100%; border-collapse: collapse; background: rgba(20,20,20,0.9); border-radius: 10px; overflow: hidden; color: white; }
     .betmgm-table th { background: #C4B454; color: black; padding: 12px; text-align: left; text-transform: uppercase; font-weight: 900; }
     .betmgm-table td { padding: 12px; border-bottom: 1px solid #333; font-weight: 500; }
@@ -99,12 +84,12 @@ st.markdown("""
 ##### SECTION 3: AUTH & SIDEBAR                                           #####
 ###############################################################################
 with st.sidebar:
-    st.title("🎯 PL 2026")
+    st.markdown("<h1 style='text-align: center;'>🎯 PL 2026</h1>", unsafe_allow_html=True)
     
     if st.session_state['username'] == "":
         u_attempt = st.text_input("Username", key="login_user")
         p_attempt = st.text_input("Password", type="password", key="login_pass")
-        if st.button("Login"):
+        if st.button("LOGIN"):
             u_df = get_data("Users")
             match = u_df[(u_df['Username'] == u_attempt) & (u_df['Password'].astype(str) == str(p_attempt))]
             if not match.empty:
@@ -125,7 +110,16 @@ with st.sidebar:
             icons=["play-btn", "trophy", "gear"],
             menu_icon="none",
             default_index=0,
-            styles={} # Managed by CSS in Section 2
+            styles={
+                "container": {"background-color": "transparent !important", "padding": "0px"},
+                "nav-link": {
+                    "color": "white", 
+                    "font-weight": "500", 
+                    "text-transform": "uppercase",
+                    "background-color": "transparent"
+                },
+                "nav-link-selected": {"background-color": "#C4B454", "color": "black", "font-weight": "700"},
+            }
         )
         
         st.write("---")
@@ -166,10 +160,19 @@ def get_countdown(target_date_str):
             hours, remainder = divmod(diff.seconds, 3600)
             minutes, seconds = divmod(remainder, 60)
             return f"""
-                <div class='timer-container'>
-                    <div class='timer-box'><div class='timer-val'>{days}</div><div class='timer-label'>Days</div></div>
-                    <div class='timer-box'><div class='timer-val'>{hours:02d}</div><div class='timer-label'>Hrs</div></div>
-                    <div class='timer-box'><div class='timer-val'>{minutes:02d}</div><div class='timer-label'>Mins</div></div>
+                <div style='display: flex; justify-content: center; gap: 10px; margin-top: 20px;'>
+                    <div style='background: rgba(0,0,0,0.7); border: 2px solid #C4B454; border-radius: 10px; padding: 15px; width: 80px; text-align: center;'>
+                        <div style='font-size: 1.8rem; font-weight: 900; color: #C4B454;'>{days}</div>
+                        <div style='font-size: 0.6rem; color: white;'>DAYS</div>
+                    </div>
+                    <div style='background: rgba(0,0,0,0.7); border: 2px solid #C4B454; border-radius: 10px; padding: 15px; width: 80px; text-align: center;'>
+                        <div style='font-size: 1.8rem; font-weight: 900; color: #C4B454;'>{hours:02d}</div>
+                        <div style='font-size: 0.6rem; color: white;'>HRS</div>
+                    </div>
+                    <div style='background: rgba(0,0,0,0.7); border: 2px solid #C4B454; border-radius: 10px; padding: 15px; width: 80px; text-align: center;'>
+                        <div style='font-size: 1.8rem; font-weight: 900; color: #C4B454;'>{minutes:02d}</div>
+                        <div style='font-size: 0.6rem; color: white;'>MINS</div>
+                    </div>
                 </div>
             """
     except: pass
@@ -251,26 +254,6 @@ if st.session_state['username'] != "":
                 new_res = pd.DataFrame([{"Night": night_to_edit, "QF1": aq1, "QF2": aq2, "QF3": aq3, "QF4": aq4, "SF1": as1, "SF2": as2, "Final": afn}])
                 conn.update(spreadsheet=URL, worksheet="PL_Results", data=pd.concat([res_df[res_df['Night'] != night_to_edit], new_res]))
                 st.success("Results Updated!")
-
-        if st.button("🔄 Recalculate Leaderboard"):
-            subs = get_data("User_Submissions")
-            results = get_data("PL_Results")
-            scores = {}
-            for _, s in subs.iterrows():
-                u = s['Username']
-                if u not in scores: scores[u] = 0
-                r = results[results['Night'] == s['Night']]
-                if not r.empty:
-                    r = r.iloc[0]
-                    for col in ['QF1','QF2','QF3','QF4']: 
-                        if str(s[col]).strip() == str(r[col]).strip(): scores[u] += 2
-                    for col in ['SF1','SF2']: 
-                        if str(s[col]).strip() == str(r[col]).strip(): scores[u] += 3
-                    if str(s['Final']).strip() == str(r['Final']).strip(): scores[u] += 5
-            
-            new_lb = pd.DataFrame(list(scores.items()), columns=['Username', 'Total'])
-            conn.update(spreadsheet=URL, worksheet="PL_Leaderboard", data=new_lb)
-            st.success("Leaderboard Synced!")
 else:
     st.markdown("<h1 style='text-align: center; margin-top: 50px;'>🎯 Welcome</h1>", unsafe_allow_html=True)
     st.markdown("<p style='text-align: center; font-weight: 500;'>Please login in the sidebar to enter your predictions.</p>", unsafe_allow_html=True)
