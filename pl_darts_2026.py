@@ -35,24 +35,32 @@ st.markdown("""
         background-color: rgba(15, 15, 15, 0.98) !important;
         border-right: 1px solid #C4B454;
     }
-    /* HIGH VISIBILITY DYNAMIC SIDEBAR ARROW */
-    .st-emotion-cache-nzvw40 {
-        color: #111111 !important;
+    
+    /* ROBUST SIDEBAR TOGGLE FIX */
+    button[kind="headerNoContext"] {
         background-color: #C4B454 !important;
-        border: 1px solid #000;
-        border-radius: 50%;
-        width: 35px !important;
-        height: 35px !important;
-        box-shadow: 2px 2px 5px rgba(0,0,0,0.3);
+        color: #111111 !important;
+        border-radius: 50% !important;
+        width: 42px !important;
+        height: 42px !important;
+        display: flex !important;
+        align-items: center !important;
+        justify-content: center !important;
+        box-shadow: 0px 4px 10px rgba(0,0,0,0.5) !important;
+        margin-left: 10px !important;
+        margin-top: 5px !important;
+    }
+    button[kind="headerNoContext"] svg {
+        fill: #111111 !important;
+        width: 26px !important;
+        height: 26px !important;
     }
     [data-testid="sidebar-close-button"] {
         color: #C4B454 !important;
         background-color: rgba(255,255,255,0.1);
         border-radius: 50%;
     }
-    [data-testid="stSidebarCollapseIcon"] {
-        color: #111111 !important;
-    }
+
     [data-testid="stSidebarContent"] { color: white !important; }
     html, body, [class*="st-"] p, label, .stMarkdown, .stText, [data-testid="stWidgetLabel"] p {
         color: white !important; font-weight: 500 !important;
@@ -253,4 +261,3 @@ else:
     with col2: st.image("https://i.postimg.cc/8kr9Yqnx/darts-logo-big.png", width='stretch')
     st.markdown("<h1 style='text-align: center; margin-top: -20px;'>WELCOME</h1>", unsafe_allow_html=True)
     st.markdown("<p style='text-align: center;'>Please login in the sidebar to view matches and enter predictions.</p>", unsafe_allow_html=True)
- 
