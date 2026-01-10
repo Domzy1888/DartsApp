@@ -21,8 +21,13 @@ URL = st.secrets["connections"]["gsheets"]["spreadsheet"]
 def get_data(worksheet):
     try:
         df = conn.read(spreadsheet=URL, worksheet=worksheet, ttl=0)
-        return df.dropna(how='all')
-    except: return pd.DataFrame()
+        df = df.dropna(how='all')
+        # CLEANER: Remove trailing spaces from column names to prevent KeyErrors
+        df.columns = df.columns.str.strip()
+        return df
+    except Exception as e:
+        st.error(f"Error loading {worksheet}: {e}")
+        return pd.DataFrame()
 
 ###############################################################################
 ##### SECTION 2: CSS - THE WHITE TEXT & UI FIXES                          #####
@@ -37,11 +42,9 @@ st.markdown("""
     }
     
     /* 2. GLOBAL TEXT OVERRIDE: Forces White & 500 Weight Everywhere */
-    /* This targets labels, paragraphs, and general text to remove grey */
     html, body, [class*="st-"] p, label, .stMarkdown, .stText, [data-testid="stWidgetLabel"] p {
         color: white !important;
         font-weight: 500 !important;
-        font-family: 'Source Sans Pro', sans-serif;
     }
 
     /* 3. Headers - Gold & Heavy */
@@ -57,7 +60,7 @@ st.markdown("""
         border-right: 1px solid #C4B454;
     }
 
-    /* 5. Sidebar Buttons (Matches, Leaderboard, Admin) */
+    /* 5. Sidebar Buttons */
     [data-testid="stSidebar"] div.stButton > button { 
         background: #C4B454 !important; 
         color: #000000 !important; 
@@ -69,15 +72,11 @@ st.markdown("""
         margin-bottom: 8px;
     }
     
-    /* 6. Dropdowns (Selectboxes) Styling */
+    /* 6. Dropdowns (Selectboxes) */
     div[data-baseweb="select"] > div {
         background-color: rgba(30, 30, 30, 0.9) !important;
         color: white !important;
         border: 1px solid #C4B454 !important;
-    }
-    /* Ensure the text inside the dropdown is white */
-    div[data-testid="stSelectbox"] div[data-baseweb="select"] {
-        color: white !important;
     }
 
     /* 7. Match Cards */
@@ -158,16 +157,18 @@ with st.sidebar:
         p_attempt = st.text_input("Password", type="password", key="login_pass")
         if st.button("LOGIN"):
             u_df = get_data("Users")
-            match = u_df[(u_df['Username'] == u_attempt) & (u_df['Password'].astype(str) == str(p_attempt))]
-            if not match.empty:
-                st.session_state['username'] = u_attempt
-                st.rerun()
-            else: st.error("Invalid Credentials")
+            if not u_df.empty and 'Username' in u_df.columns:
+                match = u_df[(u_df['Username'].astype(str) == str(u_attempt)) & (u_df['Password'].astype(str) == str(p_attempt))]
+                if not match.empty:
+                    st.session_state['username'] = u_attempt
+                    st.rerun()
+                else: st.error("Invalid Credentials")
+            else:
+                st.error("User database not found or column 'Username' missing.")
     else:
         st.markdown(f"<p style='text-align:center;'>Logged in as: <span style='color:#C4B454;'>{st.session_state['username']}</span></p>", unsafe_allow_html=True)
         st.write("---") 
         
-        # Navigation Buttons
         if st.button("▷  MATCHES"):
             st.session_state['current_page'] = "Matches"
         if st.button("✧  LEADERBOARD"):
