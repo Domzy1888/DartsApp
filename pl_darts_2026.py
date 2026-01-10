@@ -6,19 +6,16 @@ from datetime import datetime
 from streamlit_option_menu import option_menu
 
 ###############################################################################
-##### SECTION 1: PAGE CONFIGURATION & TIMER                               #####
+##### SECTION 1: PAGE CONFIGURATION                                       #####
 ###############################################################################
 st.set_page_config(page_title="PDC PL Predictor 2026", page_icon="🎯", layout="wide")
 
-# Set the date for the next match night here
+# Set target date for the countdown on the main page
 TARGET_DATE = datetime(2026, 2, 5, 19, 0) 
 
 if 'username' not in st.session_state:
     st.session_state['username'] = ""
 
-###############################################################################
-##### SECTION 2: CONNECTION SETUP                                         #####
-###############################################################################
 conn = st.connection("gsheets", type=GSheetsConnection)
 URL = st.secrets["connections"]["gsheets"]["spreadsheet"]
 
@@ -30,7 +27,7 @@ def get_data(worksheet):
     except: return pd.DataFrame()
 
 ###############################################################################
-##### SECTION 3: STYLING (The CSS Fixes)                                  #####
+##### SECTION 2: STYLING (The Final CSS Fixes)                            #####
 ###############################################################################
 st.markdown("""
     <style>
@@ -43,7 +40,7 @@ st.markdown("""
         background-color: #111111 !important; border-right: 1px solid #C4B454;
     }
     
-    /* REMOVE LIGHT BOX & BORDER FROM OPTION MENU */
+    /* REMOVE ALL MENU HIGHLIGHTS & BOXES */
     div[data-component-name="st_option_menu"] > div {
         background-color: transparent !important;
         border: none !important;
@@ -57,6 +54,15 @@ st.markdown("""
     .betmgm-table th { background: #C4B454; color: black; padding: 12px; text-align: left; text-transform: uppercase; font-weight: 900; }
     .betmgm-table td { padding: 12px; border-bottom: 1px solid #333; }
     
+    /* COUNTDOWN BOX STYLING */
+    .timer-container { display: flex; justify-content: center; gap: 10px; margin-top: 20px; }
+    .timer-box { 
+        background: rgba(0,0,0,0.7); border: 2px solid #C4B454; border-radius: 10px;
+        padding: 15px; width: 80px; text-align: center;
+    }
+    .timer-val { font-size: 1.8rem; font-weight: 900; color: #C4B454; line-height: 1; }
+    .timer-label { font-size: 0.6rem; color: white; text-transform: uppercase; margin-top: 5px; }
+
     .pl-card { border: 1px solid #C4B454; border-radius: 12px; background: rgba(20, 20, 20, 0.95); padding: 15px; margin-bottom: 15px; }
     div[data-baseweb="select"] > div { background-color: #1c1c1c !important; color: white !important; border: 1px solid #C4B454 !important; }
     div.stButton > button { background: #C4B454 !important; color: #000000 !important; font-weight: 900 !important; border: none !important; width: 100% !important; }
@@ -64,25 +70,11 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 ###############################################################################
-##### SECTION 4: AUTHENTICATION & SIDEBAR MENU                            #####
+##### SECTION 3: AUTHENTICATION & SIDEBAR MENU                            #####
 ###############################################################################
 with st.sidebar:
     st.title("🎯 PL 2026")
     
-    # --- COUNTDOWN TIMER ---
-    now = datetime.now()
-    diff = TARGET_DATE - now
-    if diff.total_seconds() > 0:
-        days = diff.days
-        hours, remainder = divmod(diff.seconds, 3600)
-        minutes, seconds = divmod(remainder, 60)
-        st.markdown(f"**NEXT MATCH IN:**")
-        st.markdown(f"### {days}d {hours}h {minutes}m")
-    else:
-        st.markdown("### 🎯 MATCH LIVE!")
-    
-    st.write("---")
-
     if st.session_state['username'] == "":
         u_attempt = st.text_input("Username", key="login_user")
         p_attempt = st.text_input("Password", type="password", key="login_pass")
@@ -107,7 +99,7 @@ with st.sidebar:
             menu_icon="none",
             default_index=0,
             styles={
-                "container": {"background-color": "#111111", "padding": "0px", "border": "none"},
+                "container": {"background-color": "transparent", "padding": "0px", "border": "none"},
                 "nav-link": {"color": "white", "font-size": "14px", "text-align": "left", "margin": "5px 0px", "font-weight": "700", "text-transform": "uppercase"},
                 "nav-link-selected": {"background-color": "#C4B454", "color": "black", "font-weight": "900"},
             }
@@ -119,7 +111,7 @@ with st.sidebar:
             st.rerun()
 
 ###############################################################################
-##### SECTION 5: RENDER MATCH FUNCTION                                    #####
+##### SECTION 4: HELPER FUNCTIONS                                         #####
 ###############################################################################
 def render_match(p1, p2, key, img_lookup, disabled=False):
     img1 = img_lookup.get(p1, "https://via.placeholder.com/150")
@@ -141,8 +133,24 @@ def render_match(p1, p2, key, img_lookup, disabled=False):
     """, unsafe_allow_html=True)
     return st.selectbox(f"Winner: {p1} vs {p2}", ["Select Winner", p1, p2], key=key, label_visibility="collapsed", disabled=disabled)
 
+def get_countdown():
+    now = datetime.now()
+    diff = TARGET_DATE - now
+    if diff.total_seconds() > 0:
+        days = diff.days
+        hours, remainder = divmod(diff.seconds, 3600)
+        minutes, seconds = divmod(remainder, 60)
+        return f"""
+            <div class='timer-container'>
+                <div class='timer-box'><div class='timer-val'>{days}</div><div class='timer-label'>Days</div></div>
+                <div class='timer-box'><div class='timer-val'>{hours:02d}</div><div class='timer-label'>Hrs</div></div>
+                <div class='timer-box'><div class='timer-val'>{minutes:02d}</div><div class='timer-label'>Mins</div></div>
+            </div>
+        """
+    return "<h3 style='text-align:center;'>🎯 ENTRIES CLOSED</h3>"
+
 ###############################################################################
-##### SECTION 6: MAIN APP LOGIC                                           #####
+##### SECTION 5: MAIN APP LOGIC                                           #####
 ###############################################################################
 if st.session_state['username'] == "":
     st.markdown("<h1 style='text-align: center;'>Welcome to the 2026 Premier League Predictor</h1>", unsafe_allow_html=True)
@@ -156,7 +164,13 @@ else:
             selected_night = st.selectbox("Select Night", admin_df['Night'].unique())
             night_data = admin_df[admin_df['Night'] == selected_night].iloc[0]
             st.markdown(f"<h1 style='text-align: center;'>📍 {night_data['Venue']}</h1>", unsafe_allow_html=True)
+            st.markdown(f"<h2 style='text-align: center;'>{selected_night}</h2>", unsafe_allow_html=True)
             
+            # REINSTATED COUNTDOWN TIMER
+            st.markdown("<p style='text-align:center; font-weight:900; margin-bottom:0;'>TIME UNTIL ENTRIES CLOSE</p>", unsafe_allow_html=True)
+            st.markdown(get_countdown(), unsafe_allow_html=True)
+            st.write("")
+
             subs_df = get_data("User_Submissions")
             has_submitted = not subs_df[(subs_df['Username'] == st.session_state['username']) & (subs_df['Night'] == selected_night)].empty
 
@@ -188,9 +202,9 @@ else:
         lb_df = get_data("PL_Leaderboard")
         if not lb_df.empty:
             lb_df = lb_df.sort_values(by="Total", ascending=False)
-            html = "<table class='betmgm-table'><tr><th>Rank</th><th>User</th><th>Total</th></tr>"
+            html = "<table class='betmgm-table'><tr><th>Rank</th><th>User</th><th>Points</th></tr>"
             for i, row in enumerate(lb_df.itertuples(), 1):
-                html += f"<tr><td>{i}</td><td>{row.Username}</td><td>{row.Total}</td></tr>"
+                html += f"<tr><td>{i}</td><td>{row.Username}</td><td>{int(row.Total)}</td></tr>"
             st.markdown(html + "</table>", unsafe_allow_html=True)
 
     elif selected_page == "Admin":
