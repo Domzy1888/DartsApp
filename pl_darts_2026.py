@@ -25,11 +25,24 @@ def get_data(worksheet):
 # 2. THEMED CSS
 st.markdown("""
     <style>
+    /* Main App Background */
     .stApp { 
         background: linear-gradient(rgba(0,0,0,0.8), rgba(0,0,0,0.8)), 
                     url("https://i.postimg.cc/d1kXbbDk/2025PLFinal-Gen-View.jpg"); 
         background-size: cover; background-attachment: fixed; 
     }
+    
+    /* Forced Sidebar Dark Theme */
+    [data-testid="stSidebar"] {
+        background-color: rgba(15, 15, 15, 0.98) !important;
+        border-right: 1px solid #C4B454;
+    }
+    
+    /* Sidebar Text and Icons */
+    [data-testid="stSidebarContent"] {
+        color: white !important;
+    }
+
     html, body, [class*="st-"] p, label, .stMarkdown, .stText, [data-testid="stWidgetLabel"] p {
         color: white !important; font-weight: 500 !important;
     }
@@ -200,4 +213,4 @@ if st.session_state['username'] != "":
                 st.success("Scores updated live!"); time.sleep(1); st.rerun()
 else:
     st.markdown("<h1 style='text-align: center; margin-top: 100px;'>🎯 Welcome</h1>", unsafe_allow_html=True)
-    st.markdown("<p style='text-align: center;'>Please login to view matches and enter predictions.</p>", unsafe_allow_html=True)
+    st.markdown("<p style='text-align: center;'>Please login in the sidebar to view matches and enter predictions.</p>", unsafe_allow_html=True)
