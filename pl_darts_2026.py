@@ -35,30 +35,32 @@ st.markdown("""
         background-color: rgba(15, 15, 15, 0.98) !important;
         border-right: 1px solid #C4B454;
     }
-    
-    /* ROBUST SIDEBAR TOGGLE FIX */
-    button[kind="headerNoContext"] {
+
+    /* THE SLEDGEHAMMER NAVIGATION FIX */
+    /* 1. Target the button container when closed */
+    [data-testid="stSidebarCollapse"], [data-testid="collapsedControl"] {
         background-color: #C4B454 !important;
-        color: #111111 !important;
-        border-radius: 50% !important;
-        width: 42px !important;
-        height: 42px !important;
-        display: flex !important;
-        align-items: center !important;
-        justify-content: center !important;
-        box-shadow: 0px 4px 10px rgba(0,0,0,0.5) !important;
-        margin-left: 10px !important;
-        margin-top: 5px !important;
+        border-radius: 0 10px 10px 0 !important;
+        width: 45px !important;
+        height: 45px !important;
+        top: 10px !important;
     }
+
+    /* 2. Target the actual icon inside the button to be Black */
+    [data-testid="stSidebarCollapse"] svg, 
+    [data-testid="collapsedControl"] svg,
     button[kind="headerNoContext"] svg {
-        fill: #111111 !important;
-        width: 26px !important;
-        height: 26px !important;
+        fill: #000000 !important;
+        color: #000000 !important;
+        width: 30px !important;
+        height: 30px !important;
     }
-    [data-testid="sidebar-close-button"] {
-        color: #C4B454 !important;
-        background-color: rgba(255,255,255,0.1);
-        border-radius: 50%;
+
+    /* 3. Target the close button inside the dark sidebar to be Gold */
+    [data-testid="sidebar-close-button"] svg {
+        fill: #C4B454 !important;
+        width: 30px !important;
+        height: 30px !important;
     }
 
     [data-testid="stSidebarContent"] { color: white !important; }
