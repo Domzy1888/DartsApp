@@ -242,11 +242,12 @@ if st.session_state['username'] != "":
                 st.cache_data.clear()
                 st.success("Scores updated live!"); time.sleep(1); st.rerun()
 else:
-    # Centering the logo on the welcome screen
-    col1, col2, col3 = st.columns([1, 2, 1])
+    # Centering the logo using columns
+    col1, col2, col3 = st.columns([1, 1, 1])
     with col2:
-        st.image("https://i.postimg.cc/8kr9Yqnx/darts-logo-big.png")
+        st.image("https://i.postimg.cc/8kr9Yqnx/darts-logo-big.png", use_container_width=True)
     
-    st.markdown("<h1 style='text-align: center;'>WELCOME</h1>", unsafe_allow_html=True)
+    st.markdown("<h1 style='text-align: center; margin-top: -20px;'>WELCOME</h1>", unsafe_allow_html=True)
     st.markdown("<p style='text-align: center;'>Please login in the sidebar to view matches and enter predictions.</p>", unsafe_allow_html=True)
+
 
