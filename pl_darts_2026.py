@@ -125,7 +125,7 @@ def get_countdown(target_date_str):
                 </div>
             """
     except: pass
-    return "<h3 style='text-align:center; color:#C4B454;'>🎯 ENTRIES CLOSED</h3>"
+    return "<h3 style='text-align:center; color:#C4B454;'>⛔️ ENTRIES CLOSED</h3>"
 
 # 4. HELPERS
 def render_match(p1, p2, key, img_lookup, disabled=False):
