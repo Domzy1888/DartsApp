@@ -177,7 +177,7 @@ if st.session_state['username'] != "":
             night = st.selectbox("Select Night", admin_df['Night'].unique())
             n_data = admin_df[admin_df['Night'] == night].iloc[0]
             st.markdown(f"<h1 style='text-align: center;'>{night}</h1>", unsafe_allow_html=True)
-            st.markdown(f"<h3 style='text-align: center;'>📍 {n_data['Venue']}</h3>", unsafe_allow_html=True)
+            st.markdown(f"<h3 style='text-align: center;'> {n_data['Venue']}</h3>", unsafe_allow_html=True)
             st.markdown(get_countdown(n_data['Cutoff']), unsafe_allow_html=True)
             
             subs_df = get_data("User_Submissions")
