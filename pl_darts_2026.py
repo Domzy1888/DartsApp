@@ -24,64 +24,75 @@ def get_data(worksheet):
     except: return pd.DataFrame()
 
 ###############################################################################
-##### SECTION 2: THE "BOMB-PROOF" STYLE FIX                               #####
+##### SECTION 2: BOLD STYLING & BOMB-PROOF MENU FIX                       #####
 ###############################################################################
 st.markdown("""
     <style>
-    /* 1. Main Background */
+    /* 1. Main App Background */
     .stApp { 
         background: linear-gradient(rgba(0,0,0,0.8), rgba(0,0,0,0.8)), 
                     url("https://i.postimg.cc/d1kXbbDk/2025PLFinal-Gen-View.jpg"); 
         background-size: cover; background-attachment: fixed; 
     }
     
-    /* 2. Sidebar Base */
+    /* 2. Sidebar Base Styling */
     [data-testid="stSidebar"], [data-testid="stSidebarContent"] {
-        background-color: #111111 !important; border-right: 1px solid #C4B454;
+        background-color: #111111 !important;
+        border-right: 1px solid #C4B454;
     }
 
-    /* 3. MENU FIX: Removes white card and corner highlights */
+    /* 3. THE MENU FIX: Targeting the IFrame and Container for Transparency */
+    iframe[title="streamlit_option_menu.option_menu"] {
+        background-color: transparent !important;
+    }
+
     div[data-component-name="st_option_menu"] > div {
         background-color: transparent !important;
         border: none !important;
         box-shadow: none !important;
     }
-    
-    /* Force unselected links to be transparent with white text */
-    .nav-link {
-        background-color: transparent !important;
-        color: white !important;
-        font-weight: 700 !important;
-        text-transform: uppercase !important;
-    }
 
-    /* Force SELECTED link to be GOLD with BLACK text */
-    .nav-link.active {
-        background-color: #C4B454 !important;
-        color: black !important;
-        font-weight: 900 !important;
+    /* 4. RESTORING BOLD TEXT & HEADERS */
+    h1, h2, h3, h4 { 
+        color: #C4B454 !important; 
+        text-transform: uppercase; 
+        font-weight: 900 !important; 
+        letter-spacing: 1px;
     }
-
-    /* 4. Global Text & Headers */
-    h1, h2, h3 { color: #C4B454 !important; text-transform: uppercase; font-weight: 900 !important; }
-    .stMarkdown p, .stText p, [data-testid="stWidgetLabel"] p { color: white !important; }
     
-    /* 5. Countdown & Tables */
+    .stMarkdown p, .stText p, [data-testid="stWidgetLabel"] p { 
+        color: white !important; 
+        font-weight: 800 !important; 
+    }
+    
+    /* 5. TIMER BOXES */
     .timer-container { display: flex; justify-content: center; gap: 10px; margin-top: 20px; }
     .timer-box { 
-        background: rgba(0,0,0,0.7); border: 2px solid #C4B454; border-radius: 10px;
-        padding: 15px; width: 80px; text-align: center;
+        background: rgba(0,0,0,0.8); border: 2px solid #C4B454; border-radius: 10px;
+        padding: 15px; width: 85px; text-align: center;
     }
     .timer-val { font-size: 1.8rem; font-weight: 900; color: #C4B454; line-height: 1; }
-    .timer-label { font-size: 0.6rem; color: white; text-transform: uppercase; margin-top: 5px; }
+    .timer-label { font-size: 0.65rem; color: white; text-transform: uppercase; font-weight: 700; margin-top: 5px; }
 
+    /* 6. CARDS & BUTTONS */
+    .pl-card { 
+        border: 2px solid #C4B454; border-radius: 12px; 
+        background: rgba(20, 20, 20, 0.95); padding: 15px; margin-bottom: 15px; 
+    }
+    
+    div.stButton > button { 
+        background: #C4B454 !important; 
+        color: #000000 !important; 
+        font-weight: 900 !important; 
+        border: none !important; 
+        width: 100% !important;
+        text-transform: uppercase;
+    }
+
+    /* 7. LEADERBOARD TABLE */
     .betmgm-table { width: 100%; border-collapse: collapse; background: rgba(20,20,20,0.9); border-radius: 10px; overflow: hidden; color: white; }
     .betmgm-table th { background: #C4B454; color: black; padding: 12px; text-align: left; text-transform: uppercase; font-weight: 900; }
-    .betmgm-table td { padding: 12px; border-bottom: 1px solid #333; }
-    
-    .pl-card { border: 1px solid #C4B454; border-radius: 12px; background: rgba(20, 20, 20, 0.95); padding: 15px; margin-bottom: 15px; }
-    div[data-baseweb="select"] > div { background-color: #1c1c1c !important; color: white !important; border: 1px solid #C4B454 !important; }
-    div.stButton > button { background: #C4B454 !important; color: #000000 !important; font-weight: 900 !important; border: none !important; width: 100% !important; }
+    .betmgm-table td { padding: 12px; border-bottom: 1px solid #333; font-weight: 700; }
     </style>
 """, unsafe_allow_html=True)
 
@@ -89,7 +100,7 @@ st.markdown("""
 ##### SECTION 3: AUTHENTICATION & SIDEBAR MENU                            #####
 ###############################################################################
 with st.sidebar:
-    st.title("🎯 PL 2026")
+    st.markdown("<h1 style='text-align: center; margin-bottom: 0;'>🎯 PL 2026</h1>", unsafe_allow_html=True)
     
     if st.session_state['username'] == "":
         u_attempt = st.text_input("Username", key="login_user")
@@ -103,7 +114,7 @@ with st.sidebar:
             else: st.error("Invalid Credentials")
         selected_page = "Matches"
     else:
-        st.write(f"Logged in as: **{st.session_state['username']}**")
+        st.markdown(f"<p style='text-align:center;'>Logged in as: <span style='color:#C4B454;'>{st.session_state['username']}</span></p>", unsafe_allow_html=True)
         
         menu_options = ["Matches", "Leaderboard"]
         if st.session_state['username'].lower() == "domzy":
@@ -112,11 +123,21 @@ with st.sidebar:
         selected_page = option_menu(
             menu_title=None, 
             options=menu_options,
+            icons=["play-btn", "trophy", "gear"],
             menu_icon="none",
             default_index=0,
             styles={
-                "container": {"background-color": "transparent", "padding": "0px"},
-                "nav-link": {"background-color": "transparent"},
+                "container": {"background-color": "transparent !important", "padding": "0px"},
+                "nav-link": {
+                    "color": "white", 
+                    "font-size": "14px", 
+                    "text-align": "left", 
+                    "margin": "5px 0px", 
+                    "font-weight": "800", 
+                    "text-transform": "uppercase", 
+                    "background-color": "transparent"
+                },
+                "nav-link-selected": {"background-color": "#C4B454", "color": "black", "font-weight": "900"},
             }
         )
         
@@ -135,13 +156,13 @@ def render_match(p1, p2, key, img_lookup, disabled=False):
         <div class="pl-card">
             <div style="display: flex; justify-content: space-around; align-items: flex-start; margin-bottom: 15px;">
                 <div style="text-align: center; width: 45%;">
-                    <img src="{img1}" style="width: 100%; max-width: 90px; border-radius: 10px;">
-                    <p style="font-size: 0.85rem; margin:0; font-weight:bold; color:white;">{p1}</p>
+                    <img src="{img1}" style="width: 100%; max-width: 90px; border-radius: 10px; border: 1px solid #C4B454;">
+                    <p style="font-size: 0.9rem; margin-top:5px; font-weight:900; color:white;">{p1}</p>
                 </div>
-                <div style="color: #C4B454; font-size: 1.4rem; font-weight: 900; margin-top: 30px;">VS</div>
+                <div style="color: #C4B454; font-size: 1.6rem; font-weight: 900; margin-top: 30px;">VS</div>
                 <div style="text-align: center; width: 45%;">
-                    <img src="{img2}" style="width: 100%; max-width: 90px; border-radius: 10px;">
-                    <p style="font-size: 0.85rem; margin:0; font-weight:bold; color:white;">{p2}</p>
+                    <img src="{img2}" style="width: 100%; max-width: 90px; border-radius: 10px; border: 1px solid #C4B454;">
+                    <p style="font-size: 0.9rem; margin-top:5px; font-weight:900; color:white;">{p2}</p>
                 </div>
             </div>
         </div>
@@ -170,9 +191,7 @@ def get_countdown(target_date_str):
 ###############################################################################
 ##### SECTION 5: MAIN APP LOGIC                                           #####
 ###############################################################################
-if st.session_state['username'] == "":
-    st.markdown("<h1 style='text-align: center;'>Welcome to the 2026 Premier League Predictor</h1>", unsafe_allow_html=True)
-else:
+if st.session_state['username'] != "":
     players_df = get_data("Players")
     img_lookup = dict(zip(players_df['Name'], players_df['Image_URL'])) if not players_df.empty else {}
     admin_df = get_data("PL_2026_Admin")
@@ -265,3 +284,6 @@ else:
             new_lb = pd.DataFrame(list(scores.items()), columns=['Username', 'Total'])
             conn.update(spreadsheet=URL, worksheet="PL_Leaderboard", data=new_lb)
             st.success("Leaderboard Synced!")
+else:
+    st.markdown("<h1 style='text-align: center; margin-top: 100px;'>🎯 Welcome to the PL 2026 Predictor</h1>", unsafe_allow_html=True)
+    st.markdown("<p style='text-align: center; font-weight: 800;'>Please log in via the sidebar to view matches and enter predictions.</p>", unsafe_allow_html=True)
