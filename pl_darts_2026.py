@@ -66,24 +66,30 @@ st.markdown("""
         background-color: rgba(30, 30, 30, 0.9) !important;
         color: white !important; border: 1px solid #C4B454 !important;
     }
+
+    /* Countdown Styling */
+    .countdown-box {
+        background: rgba(0,0,0,0.8); 
+        border: 2px solid #C4B454; 
+        border-radius: 10px; 
+        padding: 10px; 
+        width: 70px; 
+        text-align: center;
+    }
     </style>
 """, unsafe_allow_html=True)
 
-# 3. SCORING ENGINE (Live Calculation)
+# 3. SCORING ENGINE & COUNTDOWN
 def calculate_leaderboard():
     subs = get_data("User_Submissions")
     results = get_data("PL_Results")
     users = get_data("Users")
-    
     if users.empty: return pd.DataFrame(columns=["Username", "Total"])
-
     scores = {str(user): 0 for user in users['Username'].unique()}
-    
     if not subs.empty and not results.empty:
         for _, res_row in results.iterrows():
             night = res_row['Night']
             night_subs = subs[subs['Night'] == night]
-            
             for _, sub_row in night_subs.iterrows():
                 u = str(sub_row['Username'])
                 if u in scores:
@@ -96,9 +102,36 @@ def calculate_leaderboard():
                     if sub_row['SF2'] == res_row['SF2']: pts += 3
                     if sub_row['Final'] == res_row['Final']: pts += 5
                     scores[u] += pts
-
     lb = pd.DataFrame(list(scores.items()), columns=["Username", "Total"])
     return lb.sort_values(by="Total", ascending=False)
+
+def get_countdown(target_date_str):
+    try:
+        target_date = pd.to_datetime(target_date_str)
+        now = datetime.now()
+        diff = target_date - now
+        if diff.total_seconds() > 0:
+            days = diff.days
+            hours, remainder = divmod(diff.seconds, 3600)
+            minutes, seconds = divmod(remainder, 60)
+            return f"""
+                <div style='display: flex; justify-content: center; gap: 10px; margin-top: 10px; margin-bottom: 20px;'>
+                    <div class='countdown-box'>
+                        <div style='font-size: 1.5rem; font-weight: 900; color: #C4B454;'>{days}</div>
+                        <div style='font-size: 0.5rem; color: white;'>DAYS</div>
+                    </div>
+                    <div class='countdown-box'>
+                        <div style='font-size: 1.5rem; font-weight: 900; color: #C4B454;'>{hours:02d}</div>
+                        <div style='font-size: 0.5rem; color: white;'>HRS</div>
+                    </div>
+                    <div class='countdown-box'>
+                        <div style='font-size: 1.5rem; font-weight: 900; color: #C4B454;'>{minutes:02d}</div>
+                        <div style='font-size: 0.5rem; color: white;'>MINS</div>
+                    </div>
+                </div>
+            """
+    except: pass
+    return "<h3 style='text-align:center; color:#C4B454;'>🎯 ENTRIES CLOSED</h3>"
 
 # 4. HELPERS
 def render_match(p1, p2, key, img_lookup, disabled=False):
@@ -149,6 +182,9 @@ if st.session_state['username'] != "":
             n_data = admin_df[admin_df['Night'] == night].iloc[0]
             st.markdown(f"<h1 style='text-align: center;'>{night}</h1>", unsafe_allow_html=True)
             st.markdown(f"<h3 style='text-align: center;'>📍 {n_data['Venue']}</h3>", unsafe_allow_html=True)
+            
+            # REINSTATED COUNTDOWN
+            st.markdown(get_countdown(n_data['Cutoff']), unsafe_allow_html=True)
             
             subs_df = get_data("User_Submissions")
             done = not subs_df[(subs_df['Username'] == st.session_state['username']) & (subs_df['Night'] == night)].empty
