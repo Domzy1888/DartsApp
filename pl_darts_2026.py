@@ -144,7 +144,9 @@ def render_match(p1, p2, key, img_lookup, disabled=False):
 
 # 5. SIDEBAR
 with st.sidebar:
-    st.markdown("<h1 style='text-align: center;'>🎯 PL 2026</h1>", unsafe_allow_html=True)
+    st.image("https://i.postimg.cc/8kr9Yqnx/darts-logo-big.png", use_container_width=True)
+    st.markdown("<h1 style='text-align: center; font-size: 1.5rem;'>MATCH PREDICTOR</h1>", unsafe_allow_html=True)
+
     if st.session_state['username'] == "":
         u_in = st.text_input("Username")
         p_in = st.text_input("Password", type="password")
@@ -240,5 +242,11 @@ if st.session_state['username'] != "":
                 st.cache_data.clear()
                 st.success("Scores updated live!"); time.sleep(1); st.rerun()
 else:
-    st.markdown("<h1 style='text-align: center; margin-top: 100px;'>🎯 Welcome</h1>", unsafe_allow_html=True)
+    # Centering the logo on the welcome screen
+    col1, col2, col3 = st.columns([1, 2, 1])
+    with col2:
+        st.image("https://i.postimg.cc/8kr9Yqnx/darts-logo-big.png")
+    
+    st.markdown("<h1 style='text-align: center;'>WELCOME</h1>", unsafe_allow_html=True)
     st.markdown("<p style='text-align: center;'>Please login in the sidebar to view matches and enter predictions.</p>", unsafe_allow_html=True)
+
