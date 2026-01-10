@@ -25,77 +25,59 @@ def get_data(worksheet):
     except: return pd.DataFrame()
 
 ###############################################################################
-##### SECTION 2: CSS - THE UNIFORM UI FIXES                                #####
+##### SECTION 2: CSS - FORCING UNIFORM WIDTH                              #####
 ###############################################################################
 st.markdown("""
     <style>
-    /* 1. Main Background */
+    /* 1. Background */
     .stApp { 
         background: linear-gradient(rgba(0,0,0,0.8), rgba(0,0,0,0.8)), 
                     url("https://i.postimg.cc/d1kXbbDk/2025PLFinal-Gen-View.jpg"); 
         background-size: cover; background-attachment: fixed; 
     }
     
-    /* 2. Sidebar Background & Border */
+    /* 2. Sidebar styling */
     [data-testid="stSidebar"], [data-testid="stSidebarContent"] {
         background-color: #111111 !important;
         border-right: 1px solid #C4B454;
     }
 
-    /* 3. Dark Dropdowns (Selectboxes) */
+    /* 3. THE FIX: Force Sidebar Buttons to fill width */
+    /* This targets the button and its container to ensure they don't shrink */
+    [data-testid="stSidebar"] [data-testid="stVerticalBlock"] div.stButton > button {
+        width: 100% !important;
+        min-width: 100% !important;
+        display: flex !important;
+        justify-content: center !important;
+        align-items: center !important;
+        background-color: #C4B454 !important;
+        color: #000000 !important;
+        font-weight: 500 !important;
+        border: none !important;
+        text-transform: uppercase;
+        border-radius: 4px;
+        padding: 12px 0px !important;
+        margin: 0px !important;
+    }
+
+    [data-testid="stSidebar"] [data-testid="stVerticalBlock"] div.stButton > button:hover {
+        background-color: #e5d464 !important;
+    }
+
+    /* 4. Match Cards & Dropdowns */
+    .pl-card { 
+        border: 1px solid #C4B454; border-radius: 12px; 
+        background: rgba(20, 20, 20, 0.95); padding: 15px; margin-bottom: 15px; 
+    }
     div[data-baseweb="select"] > div {
         background-color: rgba(30, 30, 30, 0.9) !important;
         color: white !important;
         border: 1px solid #C4B454 !important;
     }
-    ul[role="listbox"] { background-color: #1a1a1a !important; }
-    div[data-testid="stSelectbox"] label p { color: #C4B454 !important; font-weight: 500 !important; }
-
-    /* 4. Text Weights & Colors (Matching preference 500) */
-    h1, h2, h3 { color: #C4B454 !important; text-transform: uppercase; font-weight: 900 !important; }
-    .stMarkdown p, .stText p, [data-testid="stWidgetLabel"] p { 
-        color: white !important; 
-        font-weight: 500 !important; 
-    }
-
-    /* 5. UNIFORM BUTTONS: Fixed 100% Width */
-    /* Targets sidebar buttons specifically to ensure they match each other */
-    [data-testid="stSidebar"] div.stButton > button { 
-        background: #C4B454 !important; 
-        color: #000000 !important; 
-        font-weight: 500 !important; 
-        border: none !important; 
-        text-transform: uppercase;
-        width: 100% !important;
-        display: block !important;
-        border-radius: 4px;
-        margin-bottom: 10px;
-        padding: 10px 15px !important;
-        white-space: nowrap !important;
-    }
     
-    /* Main Area Buttons (Submit/Form) */
-    div.stButton > button {
-        background: #C4B454 !important;
-        color: #000000 !important;
-        font-weight: 500 !important;
-        border-radius: 4px;
-        text-transform: uppercase;
-    }
-
-    /* 6. Match Cards */
-    .pl-card { 
-        border: 1px solid #C4B454; 
-        border-radius: 12px; 
-        background: rgba(20, 20, 20, 0.95); 
-        padding: 15px; 
-        margin-bottom: 15px; 
-    }
-
-    /* 7. Leaderboard Table */
-    .betmgm-table { width: 100%; border-collapse: collapse; background: rgba(20,20,20,0.9); border-radius: 10px; overflow: hidden; color: white; }
-    .betmgm-table th { background: #C4B454; color: black; padding: 12px; text-align: left; text-transform: uppercase; font-weight: 900; }
-    .betmgm-table td { padding: 12px; border-bottom: 1px solid #333; font-weight: 500; }
+    /* Text styling */
+    h1, h2, h3 { color: #C4B454 !important; text-transform: uppercase; font-weight: 900 !important; }
+    .stMarkdown p, .stText p { color: white !important; font-weight: 500 !important; }
     </style>
 """, unsafe_allow_html=True)
 
@@ -167,26 +149,31 @@ with st.sidebar:
                 st.rerun()
             else: st.error("Invalid Credentials")
     else:
-        st.markdown(f"<p style='text-align:center;'>Logged in: <span style='color:#C4B454;'>{st.session_state['username']}</span></p>", unsafe_allow_html=True)
-        st.write("") 
+        st.markdown(f"<p style='text-align:center;'>Logged in as: <span style='color:#C4B454;'>{st.session_state['username']}</span></p>", unsafe_allow_html=True)
+        st.write("---")
         
-        # NAVIGATION BUTTONS (Hollowed Icons)
-        if st.button("▷ MATCHES"):
+        # Navigation with Hollow Icons
+        # Using 🏆 was colored, so using 𓀠 or similar isn't as good as 𐂃 or just text
+        # Let's use ✧ or ⌬ or just a clean text approach with the triangle
+        
+        if st.button("▷  MATCHES"):
             st.session_state['current_page'] = "Matches"
-        if st.button("🏆 LEADERBOARD"):
+            
+        if st.button("✧  LEADERBOARD"):
             st.session_state['current_page'] = "Leaderboard"
+            
         if st.session_state['username'].lower() == "domzy":
-            if st.button("⚙︎ ADMIN"):
+            if st.button("⚙︎  ADMIN"):
                 st.session_state['current_page'] = "Admin"
         
-        st.markdown("<br><br>", unsafe_allow_html=True)
+        st.markdown("<br><br><br>", unsafe_allow_html=True)
         if st.button("LOGOUT"):
             st.session_state['username'] = ""
             st.session_state['current_page'] = "Matches"
             st.rerun()
 
 ###############################################################################
-##### SECTION 5: MAIN APP LOGIC                                           #####
+##### SECTION 5: PAGE LOGIC                                               #####
 ###############################################################################
 if st.session_state['username'] != "":
     players_df = get_data("Players")
@@ -263,6 +250,6 @@ if st.session_state['username'] != "":
                 new_res = pd.DataFrame([{"Night": night_to_edit, "QF1": aq1, "QF2": aq2, "QF3": aq3, "QF4": aq4, "SF1": as1, "SF2": as2, "Final": afn}])
                 conn.update(spreadsheet=URL, worksheet="PL_Results", data=pd.concat([res_df[res_df['Night'] != night_to_edit], new_res]))
                 st.success("Results Updated!")
+
 else:
     st.markdown("<h1 style='text-align: center; margin-top: 100px;'>🎯 Welcome</h1>", unsafe_allow_html=True)
-    st.markdown("<p style='text-align: center; font-weight: 500;'>Please login in the sidebar to start.</p>", unsafe_allow_html=True)
