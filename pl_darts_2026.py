@@ -17,7 +17,6 @@ if 'current_page' not in st.session_state:
 conn = st.connection("gsheets", type=GSheetsConnection)
 URL = st.secrets["connections"]["gsheets"]["spreadsheet"]
 
-# FIX: Increased TTL to 600 (10 mins) to prevent Google Sheets Quota errors
 @st.cache_data(ttl=600)
 def get_data(worksheet):
     try:
@@ -26,7 +25,6 @@ def get_data(worksheet):
         df.columns = df.columns.str.strip()
         return df
     except Exception as e:
-        # If quota is hit, show a friendlier warning
         if "429" in str(e):
             st.warning("Refresh limit reached. Please wait 1 minute.")
         else:
@@ -60,9 +58,8 @@ st.markdown("""
         border-right: 1px solid #C4B454;
     }
 
-    /* 5. FIX: BUTTON COLORING (Gold Background, Black Text) */
-    /* This targets sidebar AND main buttons to prevent white-on-white */
-    div.stButton > button {
+    /* 5. FIX: ALL BUTTONS (Standard and Form Submit) */
+    div.stButton > button, div.stFormSubmitButton > button {
         background-color: #C4B454 !important;
         color: #000000 !important;
         font-weight: 700 !important;
@@ -73,7 +70,7 @@ st.markdown("""
         height: 45px;
     }
     
-    div.stButton > button:hover {
+    div.stButton > button:hover, div.stFormSubmitButton > button:hover {
         background-color: #e5d464 !important;
         color: #000000 !important;
     }
@@ -207,24 +204,23 @@ if st.session_state['username'] != "":
             has_submitted = not subs_df[(subs_df['Username'] == st.session_state['username']) & (subs_df['Night'] == selected_night)].empty
 
             st.markdown("### 1️⃣ Quarter Finals")
-            q1 = render_match(night_data['QF1-P1'], night_data['QF1-P2'], "q1", img_lookup, has_submitted)
-            q2 = render_match(night_data['QF2-P1'], night_data['QF2-P2'], "q2", img_lookup, has_submitted)
-            q3 = render_match(night_data['QF3-P1'], night_data['QF3-P2'], "q3", img_lookup, has_submitted)
-            q4 = render_match(night_data['QF4-P1'], night_data['QF4-P2'], "q4", img_lookup, has_submitted)
+            q1 = render_match(night_data['QF1-P1'], night_data['QF1-P2'], "match_q1", img_lookup, has_submitted)
+            q2 = render_match(night_data['QF2-P1'], night_data['QF2-P2'], "match_q2", img_lookup, has_submitted)
+            q3 = render_match(night_data['QF3-P1'], night_data['QF3-P2'], "match_q3", img_lookup, has_submitted)
+            q4 = render_match(night_data['QF4-P1'], night_data['QF4-P2'], "match_q4", img_lookup, has_submitted)
 
             if all(x != "Select Winner" for x in [q1, q2, q3, q4]):
                 st.divider()
                 st.markdown("### 2️⃣ Semi Finals")
-                s1 = render_match(q1, q2, "s1", img_lookup, has_submitted)
-                s2 = render_match(q3, q4, "s2", img_lookup, has_submitted)
+                s1 = render_match(q1, q2, "match_s1", img_lookup, has_submitted)
+                s2 = render_match(q3, q4, "match_s2", img_lookup, has_submitted)
 
                 if all(x != "Select Winner" for x in [s1, s2]):
                     st.divider()
                     st.markdown("### 🏆 The Final")
-                    fin = render_match(s1, s2, "fin", img_lookup, has_submitted)
+                    fin = render_match(s1, s2, "match_fin", img_lookup, has_submitted)
 
                     if fin != "Select Winner" and not has_submitted:
-                        # Submit Button is now Gold with Black text due to CSS
                         if st.button("SUBMIT PREDICTIONS"):
                             new_row = pd.DataFrame([{"Timestamp": datetime.now(), "Username": st.session_state['username'], "Night": selected_night, "QF1": q1, "QF2": q2, "QF3": q3, "QF4": q4, "SF1": s1, "SF2": s2, "Final": fin}])
                             conn.update(spreadsheet=URL, worksheet="User_Submissions", data=pd.concat([subs_df, new_row]))
@@ -245,16 +241,32 @@ if st.session_state['username'] != "":
         night_to_edit = st.selectbox("Update Night Results", admin_df['Night'].unique())
         n_data = admin_df[admin_df['Night'] == night_to_edit].iloc[0]
         
-        with st.form("admin_form"):
-            aq1 = st.selectbox("QF1 Winner", [n_data['QF1-P1'], n_data['QF1-P2']])
-            aq2 = st.selectbox("QF2 Winner", [n_data['QF2-P1'], n_data['QF2-P2']])
-            aq3 = st.selectbox("QF3 Winner", [n_data['QF3-P1'], n_data['QF3-P2']])
-            aq4 = st.selectbox("QF4 Winner", [n_data['QF4-P1'], n_data['QF4-P2']])
-            as1 = st.selectbox("SF1 Winner", [aq1, aq2])
-            as2 = st.selectbox("SF2 Winner", [aq3, aq4])
-            afn = st.selectbox("Overall Winner", [as1, as2])
-            
-            if st.form_submit_button("Save Winners"):
+        # FIXED: Removed st.form to allow SF and Final options to update dynamically
+        st.write("### Quarter Finals")
+        aq1 = st.selectbox("QF1 Winner", ["Select Winner", n_data['QF1-P1'], n_data['QF1-P2']], key="aq1")
+        aq2 = st.selectbox("QF2 Winner", ["Select Winner", n_data['QF2-P1'], n_data['QF2-P2']], key="aq2")
+        aq3 = st.selectbox("QF3 Winner", ["Select Winner", n_data['QF3-P1'], n_data['QF3-P2']], key="aq3")
+        aq4 = st.selectbox("QF4 Winner", ["Select Winner", n_data['QF4-P1'], n_data['QF4-P2']], key="aq4")
+        
+        st.divider()
+        st.write("### Semi Finals")
+        # SF options only appear if QFs are selected
+        s1_opts = ["Select Winner", aq1, aq2] if "Select Winner" not in [aq1, aq2] else ["Select Winner"]
+        s2_opts = ["Select Winner", aq3, aq4] if "Select Winner" not in [aq3, aq4] else ["Select Winner"]
+        
+        as1 = st.selectbox("SF1 Winner", s1_opts, key="as1")
+        as2 = st.selectbox("SF2 Winner", s2_opts, key="as2")
+        
+        st.divider()
+        st.write("### The Final")
+        f_opts = ["Select Winner", as1, as2] if "Select Winner" not in [as1, as2] else ["Select Winner"]
+        afn = st.selectbox("Overall Winner", f_opts, key="afn")
+        
+        st.write("")
+        if st.button("SAVE WINNERS"):
+            if "Select Winner" in [aq1, aq2, aq3, aq4, as1, as2, afn]:
+                st.error("Please select winners for all rounds.")
+            else:
                 new_res = pd.DataFrame([{"Night": night_to_edit, "QF1": aq1, "QF2": aq2, "QF3": aq3, "QF4": aq4, "SF1": as1, "SF2": as2, "Final": afn}])
                 conn.update(spreadsheet=URL, worksheet="PL_Results", data=pd.concat([res_df[res_df['Night'] != night_to_edit], new_res]))
                 st.success("Results Updated!")
