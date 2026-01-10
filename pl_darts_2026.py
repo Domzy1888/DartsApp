@@ -24,40 +24,43 @@ def get_data(worksheet):
     except: return pd.DataFrame()
 
 ###############################################################################
-##### SECTION 2: STYLING (The "No Highlight" Menu & Timer Fix)            #####
+##### SECTION 2: BOMP-PROOF STYLING (The Nuclear Fix)                     #####
 ###############################################################################
 st.markdown("""
     <style>
+    /* 1. Main Background */
     .stApp { 
         background: linear-gradient(rgba(0,0,0,0.8), rgba(0,0,0,0.8)), 
                     url("https://i.postimg.cc/d1kXbbDk/2025PLFinal-Gen-View.jpg"); 
         background-size: cover; background-attachment: fixed; 
     }
+    
+    /* 2. Sidebar Base */
     [data-testid="stSidebar"], [data-testid="stSidebarContent"] {
         background-color: #111111 !important; border-right: 1px solid #C4B454;
     }
-    
-    /* TOTAL DARK MENU: Removes white box, shadows, and those corner brackets */
-    div[data-component-name="st_option_menu"] > div {
+
+    /* 3. THE NUCLEAR OPTION: Targeting the Menu IFrame and all children */
+    iframe[title="streamlit_option_menu.option_menu"] {
         background-color: transparent !important;
+    }
+    
+    /* This targets the internal container of the option menu component */
+    div[data-component-name="st_option_menu"] > div,
+    div[data-component-name="st_option_menu"] section,
+    div[data-component-name="st_option_menu"] ul,
+    div[data-component-name="st_option_menu"] li {
+        background-color: transparent !important;
+        background: transparent !important;
         border: none !important;
         box-shadow: none !important;
     }
-    div[data-component-name="st_option_menu"] ul {
-        background-color: transparent !important;
-    }
-    div[data-component-name="st_option_menu"] li {
-        background-color: transparent !important;
-    }
 
+    /* 4. Global Text & Headers */
     h1, h2, h3 { color: #C4B454 !important; text-transform: uppercase; font-weight: 900 !important; }
     .stMarkdown p, .stText p, [data-testid="stWidgetLabel"] p { color: white !important; }
     
-    .betmgm-table { width: 100%; border-collapse: collapse; background: rgba(20,20,20,0.9); border-radius: 10px; overflow: hidden; color: white; }
-    .betmgm-table th { background: #C4B454; color: black; padding: 12px; text-align: left; text-transform: uppercase; font-weight: 900; }
-    .betmgm-table td { padding: 12px; border-bottom: 1px solid #333; }
-    
-    /* TIMER BOX STYLING */
+    /* 5. Countdown & Tables */
     .timer-container { display: flex; justify-content: center; gap: 10px; margin-top: 20px; }
     .timer-box { 
         background: rgba(0,0,0,0.7); border: 2px solid #C4B454; border-radius: 10px;
@@ -66,6 +69,10 @@ st.markdown("""
     .timer-val { font-size: 1.8rem; font-weight: 900; color: #C4B454; line-height: 1; }
     .timer-label { font-size: 0.6rem; color: white; text-transform: uppercase; margin-top: 5px; }
 
+    .betmgm-table { width: 100%; border-collapse: collapse; background: rgba(20,20,20,0.9); border-radius: 10px; overflow: hidden; color: white; }
+    .betmgm-table th { background: #C4B454; color: black; padding: 12px; text-align: left; text-transform: uppercase; font-weight: 900; }
+    .betmgm-table td { padding: 12px; border-bottom: 1px solid #333; }
+    
     .pl-card { border: 1px solid #C4B454; border-radius: 12px; background: rgba(20, 20, 20, 0.95); padding: 15px; margin-bottom: 15px; }
     div[data-baseweb="select"] > div { background-color: #1c1c1c !important; color: white !important; border: 1px solid #C4B454 !important; }
     div.stButton > button { background: #C4B454 !important; color: #000000 !important; font-weight: 900 !important; border: none !important; width: 100% !important; }
@@ -102,7 +109,7 @@ with st.sidebar:
             menu_icon="none",
             default_index=0,
             styles={
-                "container": {"background-color": "transparent", "padding": "0px", "border": "none"},
+                "container": {"background-color": "transparent !important", "padding": "0px", "border": "none"},
                 "nav-link": {"color": "white", "font-size": "14px", "text-align": "left", "margin": "5px 0px", "font-weight": "700", "text-transform": "uppercase", "background-color": "transparent"},
                 "nav-link-selected": {"background-color": "#C4B454", "color": "black", "font-weight": "900"},
             }
@@ -169,8 +176,6 @@ else:
         if not admin_df.empty:
             selected_night = st.selectbox("Select Night", admin_df['Night'].unique())
             night_data = admin_df[admin_df['Night'] == selected_night].iloc[0]
-            
-            # UPDATED: Pulling from 'Cutoff' exactly
             cutoff_val = night_data['Cutoff']
             
             st.markdown(f"<h1 style='text-align: center;'>📍 {night_data['Venue']}</h1>", unsafe_allow_html=True)
