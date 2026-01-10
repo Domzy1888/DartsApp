@@ -5,7 +5,7 @@ import time
 from datetime import datetime
 
 # 1. PAGE CONFIGURATION
-st.set_page_config(page_title="PDC PL Predictor 2026", page_icon="🎯", layout="wide")
+st.set_page_config(page_title="PL Predictor", page_icon="https://i.postimg.cc/8kr9Yqnx/darts-logo-big.png", layout="wide")
 
 if 'username' not in st.session_state: st.session_state['username'] = ""
 if 'current_page' not in st.session_state: st.session_state['current_page'] = "Matches"
@@ -34,6 +34,24 @@ st.markdown("""
     [data-testid="stSidebar"] {
         background-color: rgba(15, 15, 15, 0.98) !important;
         border-right: 1px solid #C4B454;
+    }
+    /* HIGH VISIBILITY DYNAMIC SIDEBAR ARROW */
+    .st-emotion-cache-nzvw40 {
+        color: #111111 !important;
+        background-color: #C4B454 !important;
+        border: 1px solid #000;
+        border-radius: 50%;
+        width: 35px !important;
+        height: 35px !important;
+        box-shadow: 2px 2px 5px rgba(0,0,0,0.3);
+    }
+    [data-testid="sidebar-close-button"] {
+        color: #C4B454 !important;
+        background-color: rgba(255,255,255,0.1);
+        border-radius: 50%;
+    }
+    [data-testid="stSidebarCollapseIcon"] {
+        color: #111111 !important;
     }
     [data-testid="stSidebarContent"] { color: white !important; }
     html, body, [class*="st-"] p, label, .stMarkdown, .stText, [data-testid="stWidgetLabel"] p {
