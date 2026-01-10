@@ -253,3 +253,4 @@ else:
     with col2: st.image("https://i.postimg.cc/8kr9Yqnx/darts-logo-big.png", width='stretch')
     st.markdown("<h1 style='text-align: center; margin-top: -20px;'>WELCOME</h1>", unsafe_allow_html=True)
     st.markdown("<p style='text-align: center;'>Please login in the sidebar to view matches and enter predictions.</p>", unsafe_allow_html=True)
+ 
