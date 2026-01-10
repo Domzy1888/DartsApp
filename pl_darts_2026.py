@@ -10,9 +10,6 @@ from streamlit_option_menu import option_menu
 ###############################################################################
 st.set_page_config(page_title="PDC PL Predictor 2026", page_icon="🎯", layout="wide")
 
-# Set target date for the countdown on the main page
-TARGET_DATE = datetime(2026, 2, 5, 19, 0) 
-
 if 'username' not in st.session_state:
     st.session_state['username'] = ""
 
@@ -27,7 +24,7 @@ def get_data(worksheet):
     except: return pd.DataFrame()
 
 ###############################################################################
-##### SECTION 2: STYLING (The Final CSS Fixes)                            #####
+##### SECTION 2: STYLING (The "No Highlight" Menu & Timer Fix)            #####
 ###############################################################################
 st.markdown("""
     <style>
@@ -40,11 +37,17 @@ st.markdown("""
         background-color: #111111 !important; border-right: 1px solid #C4B454;
     }
     
-    /* REMOVE ALL MENU HIGHLIGHTS & BOXES */
+    /* TOTAL DARK MENU: Removes white box, shadows, and those corner brackets */
     div[data-component-name="st_option_menu"] > div {
         background-color: transparent !important;
         border: none !important;
         box-shadow: none !important;
+    }
+    div[data-component-name="st_option_menu"] ul {
+        background-color: transparent !important;
+    }
+    div[data-component-name="st_option_menu"] li {
+        background-color: transparent !important;
     }
 
     h1, h2, h3 { color: #C4B454 !important; text-transform: uppercase; font-weight: 900 !important; }
@@ -54,7 +57,7 @@ st.markdown("""
     .betmgm-table th { background: #C4B454; color: black; padding: 12px; text-align: left; text-transform: uppercase; font-weight: 900; }
     .betmgm-table td { padding: 12px; border-bottom: 1px solid #333; }
     
-    /* COUNTDOWN BOX STYLING */
+    /* TIMER BOX STYLING */
     .timer-container { display: flex; justify-content: center; gap: 10px; margin-top: 20px; }
     .timer-box { 
         background: rgba(0,0,0,0.7); border: 2px solid #C4B454; border-radius: 10px;
@@ -100,7 +103,7 @@ with st.sidebar:
             default_index=0,
             styles={
                 "container": {"background-color": "transparent", "padding": "0px", "border": "none"},
-                "nav-link": {"color": "white", "font-size": "14px", "text-align": "left", "margin": "5px 0px", "font-weight": "700", "text-transform": "uppercase"},
+                "nav-link": {"color": "white", "font-size": "14px", "text-align": "left", "margin": "5px 0px", "font-weight": "700", "text-transform": "uppercase", "background-color": "transparent"},
                 "nav-link-selected": {"background-color": "#C4B454", "color": "black", "font-weight": "900"},
             }
         )
@@ -133,20 +136,23 @@ def render_match(p1, p2, key, img_lookup, disabled=False):
     """, unsafe_allow_html=True)
     return st.selectbox(f"Winner: {p1} vs {p2}", ["Select Winner", p1, p2], key=key, label_visibility="collapsed", disabled=disabled)
 
-def get_countdown():
-    now = datetime.now()
-    diff = TARGET_DATE - now
-    if diff.total_seconds() > 0:
-        days = diff.days
-        hours, remainder = divmod(diff.seconds, 3600)
-        minutes, seconds = divmod(remainder, 60)
-        return f"""
-            <div class='timer-container'>
-                <div class='timer-box'><div class='timer-val'>{days}</div><div class='timer-label'>Days</div></div>
-                <div class='timer-box'><div class='timer-val'>{hours:02d}</div><div class='timer-label'>Hrs</div></div>
-                <div class='timer-box'><div class='timer-val'>{minutes:02d}</div><div class='timer-label'>Mins</div></div>
-            </div>
-        """
+def get_countdown(target_date_str):
+    try:
+        target_date = pd.to_datetime(target_date_str)
+        now = datetime.now()
+        diff = target_date - now
+        if diff.total_seconds() > 0:
+            days = diff.days
+            hours, remainder = divmod(diff.seconds, 3600)
+            minutes, seconds = divmod(remainder, 60)
+            return f"""
+                <div class='timer-container'>
+                    <div class='timer-box'><div class='timer-val'>{days}</div><div class='timer-label'>Days</div></div>
+                    <div class='timer-box'><div class='timer-val'>{hours:02d}</div><div class='timer-label'>Hrs</div></div>
+                    <div class='timer-box'><div class='timer-val'>{minutes:02d}</div><div class='timer-label'>Mins</div></div>
+                </div>
+            """
+    except: pass
     return "<h3 style='text-align:center;'>🎯 ENTRIES CLOSED</h3>"
 
 ###############################################################################
@@ -163,12 +169,14 @@ else:
         if not admin_df.empty:
             selected_night = st.selectbox("Select Night", admin_df['Night'].unique())
             night_data = admin_df[admin_df['Night'] == selected_night].iloc[0]
+            
+            # UPDATED: Pulling from 'Cutoff' exactly
+            cutoff_val = night_data['Cutoff']
+            
             st.markdown(f"<h1 style='text-align: center;'>📍 {night_data['Venue']}</h1>", unsafe_allow_html=True)
             st.markdown(f"<h2 style='text-align: center;'>{selected_night}</h2>", unsafe_allow_html=True)
-            
-            # REINSTATED COUNTDOWN TIMER
             st.markdown("<p style='text-align:center; font-weight:900; margin-bottom:0;'>TIME UNTIL ENTRIES CLOSE</p>", unsafe_allow_html=True)
-            st.markdown(get_countdown(), unsafe_allow_html=True)
+            st.markdown(get_countdown(cutoff_val), unsafe_allow_html=True)
             st.write("")
 
             subs_df = get_data("User_Submissions")
