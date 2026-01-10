@@ -25,11 +25,11 @@ def get_data(worksheet):
     except: return pd.DataFrame()
 
 ###############################################################################
-##### SECTION 2: CSS - FORCING UNIFORM WIDTH                              #####
+##### SECTION 2: CSS - AGGRESSIVE UNIFORM BUTTONS                         #####
 ###############################################################################
 st.markdown("""
     <style>
-    /* 1. Background */
+    /* 1. Main Background */
     .stApp { 
         background: linear-gradient(rgba(0,0,0,0.8), rgba(0,0,0,0.8)), 
                     url("https://i.postimg.cc/d1kXbbDk/2025PLFinal-Gen-View.jpg"); 
@@ -42,25 +42,24 @@ st.markdown("""
         border-right: 1px solid #C4B454;
     }
 
-    /* 3. THE FIX: Force Sidebar Buttons to fill width */
-    /* This targets the button and its container to ensure they don't shrink */
-    [data-testid="stSidebar"] [data-testid="stVerticalBlock"] div.stButton > button {
+    /* 3. FORCE FULL WIDTH BUTTONS */
+    /* This overrides the 'shrink-wrap' behavior seen in your screenshots */
+    [data-testid="stSidebar"] .stButton button {
         width: 100% !important;
-        min-width: 100% !important;
         display: flex !important;
-        justify-content: center !important;
-        align-items: center !important;
+        justify-content: flex-start !important; /* Aligns text/icon to left */
+        padding-left: 20px !important;
         background-color: #C4B454 !important;
         color: #000000 !important;
-        font-weight: 500 !important;
+        font-weight: 600 !important;
         border: none !important;
         text-transform: uppercase;
         border-radius: 4px;
-        padding: 12px 0px !important;
-        margin: 0px !important;
+        height: 45px;
+        margin-bottom: 5px !important;
     }
 
-    [data-testid="stSidebar"] [data-testid="stVerticalBlock"] div.stButton > button:hover {
+    [data-testid="stSidebar"] .stButton button:hover {
         background-color: #e5d464 !important;
     }
 
@@ -149,21 +148,18 @@ with st.sidebar:
                 st.rerun()
             else: st.error("Invalid Credentials")
     else:
-        st.markdown(f"<p style='text-align:center;'>Logged in as: <span style='color:#C4B454;'>{st.session_state['username']}</span></p>", unsafe_allow_html=True)
+        st.markdown(f"<p style='text-align:center;'>Logged in: <span style='color:#C4B454;'>{st.session_state['username']}</span></p>", unsafe_allow_html=True)
         st.write("---")
         
-        # Navigation with Hollow Icons
-        # Using 🏆 was colored, so using 𓀠 or similar isn't as good as 𐂃 or just text
-        # Let's use ✧ or ⌬ or just a clean text approach with the triangle
-        
-        if st.button("▷  MATCHES"):
+        # NAVIGATION WITH HOLLOW ICONS
+        if st.button("▷ MATCHES"):
             st.session_state['current_page'] = "Matches"
             
-        if st.button("✧  LEADERBOARD"):
+        if st.button("✧ LEADERBOARD"):
             st.session_state['current_page'] = "Leaderboard"
             
         if st.session_state['username'].lower() == "domzy":
-            if st.button("⚙︎  ADMIN"):
+            if st.button("⚙︎ ADMIN"):
                 st.session_state['current_page'] = "Admin"
         
         st.markdown("<br><br><br>", unsafe_allow_html=True)
@@ -173,7 +169,7 @@ with st.sidebar:
             st.rerun()
 
 ###############################################################################
-##### SECTION 5: PAGE LOGIC                                               #####
+##### SECTION 5: MAIN LOGIC                                               #####
 ###############################################################################
 if st.session_state['username'] != "":
     players_df = get_data("Players")
@@ -250,6 +246,5 @@ if st.session_state['username'] != "":
                 new_res = pd.DataFrame([{"Night": night_to_edit, "QF1": aq1, "QF2": aq2, "QF3": aq3, "QF4": aq4, "SF1": as1, "SF2": as2, "Final": afn}])
                 conn.update(spreadsheet=URL, worksheet="PL_Results", data=pd.concat([res_df[res_df['Night'] != night_to_edit], new_res]))
                 st.success("Results Updated!")
-
 else:
     st.markdown("<h1 style='text-align: center; margin-top: 100px;'>🎯 Welcome</h1>", unsafe_allow_html=True)
