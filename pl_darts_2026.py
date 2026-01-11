@@ -175,7 +175,18 @@ if st.session_state['username'] != "":
 
     if st.session_state['current_page'] == "Matches":
         if not admin_df.empty:
-            night = st.selectbox("Select Night", admin_df['Night'].unique())
+            # --- AUTO-SELECTION LOGIC ---
+            options = list(admin_df['Night'].unique())
+            # Find the first night where the cutoff hasn't passed yet
+            upcoming = admin_df[pd.to_datetime(admin_df['Cutoff']) > datetime.now()]
+            default_index = 0
+            if not upcoming.empty:
+                next_night = upcoming.iloc[0]['Night']
+                default_index = options.index(next_night)
+            
+            night = st.selectbox("Select Night", options, index=default_index)
+            # ----------------------------
+            
             n_data = admin_df[admin_df['Night'] == night].iloc[0]
             st.markdown(f"<h1 style='text-align: center;'>{night}</h1>", unsafe_allow_html=True)
             st.markdown(f"<h3 style='text-align: center;'>{n_data['Venue']}</h3>", unsafe_allow_html=True)
