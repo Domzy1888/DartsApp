@@ -17,9 +17,7 @@ URL = st.secrets["connections"]["gsheets"]["spreadsheet"]
 # --- NAME SUBSTITUTION MAP ---
 # Keeps the UI clean while maintaining sheet integrity
 NAME_MAP = {
-    "Michael van Gerwen": "MVG",
-    "Luke Littler": "Littler",
-    "Luke Humphries": "Humphries"
+    "Michael van Gerwen": "MVG"
 }
 
 def get_display_name(full_name):
