@@ -161,6 +161,7 @@ with st.sidebar:
     else:
         st.write(f"Logged in: **{st.session_state['username']}**")
         if st.button("Matches"): st.session_state['current_page'] = "Matches"
+        if st.button("Rival Watch"): st.session_state['current_page'] = "Rival Watch"
         if st.button("Leaderboard"): st.session_state['current_page'] = "Leaderboard"
         if st.session_state['username'].lower() == "domzy":
             if st.button("Admin"): st.session_state['current_page'] = "Admin"
@@ -175,9 +176,7 @@ if st.session_state['username'] != "":
 
     if st.session_state['current_page'] == "Matches":
         if not admin_df.empty:
-            # --- AUTO-SELECTION LOGIC ---
             options = list(admin_df['Night'].unique())
-            # Find the first night where the cutoff hasn't passed yet
             upcoming = admin_df[pd.to_datetime(admin_df['Cutoff']) > datetime.now()]
             default_index = 0
             if not upcoming.empty:
@@ -185,8 +184,6 @@ if st.session_state['username'] != "":
                 default_index = options.index(next_night)
             
             night = st.selectbox("Select Night", options, index=default_index)
-            # ----------------------------
-            
             n_data = admin_df[admin_df['Night'] == night].iloc[0]
             st.markdown(f"<h1 style='text-align: center;'>{night}</h1>", unsafe_allow_html=True)
             st.markdown(f"<h3 style='text-align: center;'>{n_data['Venue']}</h3>", unsafe_allow_html=True)
@@ -211,6 +208,31 @@ if st.session_state['username'] != "":
                             conn.update(spreadsheet=URL, worksheet="User_Submissions", data=pd.concat([subs_df, new_row]))
                             st.cache_data.clear(); st.success("Good luck!"); time.sleep(1); st.rerun()
             if done: st.info("Predictions locked for this night.")
+
+    elif st.session_state['current_page'] == "Rival Watch":
+        st.markdown("<h1 style='text-align: center;'>👀 RIVAL WATCH</h1>", unsafe_allow_html=True)
+        if not admin_df.empty:
+            opts = list(admin_df['Night'].unique())
+            upcoming = admin_df[pd.to_datetime(admin_df['Cutoff']) > datetime.now()]
+            def_night = upcoming.iloc[0]['Night'] if not upcoming.empty else opts[-1]
+            sel_night = st.selectbox("View Predictions for:", opts, index=opts.index(def_night))
+            
+            subs_df = get_data("User_Submissions")
+            user_done = not subs_df[(subs_df['Username'] == st.session_state['username']) & (subs_df['Night'] == sel_night)].empty
+
+            if user_done:
+                rivals = subs_df[(subs_df['Night'] == sel_night) & (subs_df['Username'] != st.session_state['username'])]
+                if rivals.empty:
+                    st.info("No rivals have submitted predictions for this night yet.")
+                for _, row in rivals.iterrows():
+                    with st.expander(f"👤 {row['Username'].upper()}'S PICKS"):
+                        c1, c2, c3 = st.columns(3)
+                        with c1: st.write(f"**Quarters:**\n\n{row['QF1']}\n\n{row['QF2']}\n\n{row['QF3']}\n\n{row['QF4']}")
+                        with c2: st.write(f"**Semis:**\n\n{row['SF1']}\n\n{row['SF2']}")
+                        with c3: st.markdown(f"**Winner:**\n\n<h3 style='color:#C4B454;'>{row['Final']}</h3>", unsafe_allow_html=True)
+            else:
+                st.warning("⛔️ ACCESS DENIED")
+                st.info("You must submit your own predictions for this night before you can see what your rivals have picked!")
 
     elif st.session_state['current_page'] == "Leaderboard":
         st.markdown("<h1 style='text-align: center;'>🏆 LEADERBOARD</h1>", unsafe_allow_html=True)
