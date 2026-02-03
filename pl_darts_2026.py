@@ -23,12 +23,11 @@ def get_data(worksheet):
         return df
     except: return pd.DataFrame()
 
-# --- REFINED FORM HELPER WITH PILL ICONS ---
+# --- SEQUENTIAL FORM HELPER ---
 def get_form(player):
     results = get_data("PL_Results")
     admin = get_data("PL_2026_Admin")
     
-    # CSS for the icons
     win_css = "display:inline-block; width:18px; height:18px; line-height:18px; background:#00FF00; color:black; border-radius:3px; font-size:10px; font-weight:900; margin:1px;"
     loss_css = "display:inline-block; width:18px; height:18px; line-height:18px; background:#FF0000; color:white; border-radius:3px; font-size:10px; font-weight:900; margin:1px;"
     dash_css = "display:inline-block; width:18px; height:18px; line-height:18px; background:#444; color:#888; border-radius:3px; font-size:10px; font-weight:900; margin:1px;"
@@ -37,33 +36,43 @@ def get_form(player):
         return "".join([f"<div style='{dash_css}'>-</div>" for _ in range(5)])
     
     player_results = []
-    # Search all result rows for this player
     for _, row in results.iterrows():
         night = row['Night']
         n_admin = admin[admin['Night'] == night]
         if n_admin.empty: continue
         n_admin = n_admin.iloc[0]
         
-        # Check if they were in any of the matches on that night
-        # We check the winners recorded in the PL_Results sheet
-        match_winners = [row['QF1'], row['QF2'], row['QF3'], row['QF4'], row['SF1'], row['SF2'], row['Final']]
-        
-        # We also need to know if they played and LOST. 
-        # We check the Admin sheet for the players listed for that night
-        participants = [
-            n_admin['QF1-P1'], n_admin['QF1-P2'], 
-            n_admin['QF2-P1'], n_admin['QF2-P2'],
-            n_admin['QF3-P1'], n_admin['QF3-P2'], 
-            n_admin['QF4-P1'], n_admin['QF4-P2']
+        # 1. Check Quarter Finals
+        qf_matchups = [
+            (n_admin['QF1-P1'], n_admin['QF1-P2'], row['QF1']),
+            (n_admin['QF2-P1'], n_admin['QF2-P2'], row['QF2']),
+            (n_admin['QF3-P1'], n_admin['QF3-P2'], row['QF3']),
+            (n_admin['QF4-P1'], n_admin['QF4-P2'], row['QF4'])
         ]
+        
+        won_qf = False
+        played_qf = False
+        for p1, p2, winner in qf_matchups:
+            if player == p1 or player == p2:
+                played_qf = True
+                if player == winner:
+                    player_results.append(f"<div style='{win_css}'>W</div>")
+                    won_qf = True
+                else:
+                    player_results.append(f"<div style='{loss_css}'>L</div>")
+        
+        # 2. Check Semi Finals (only if they progressed)
+        if won_qf:
+            if player == row['SF1'] or player == row['SF2']:
+                player_results.append(f"<div style='{win_css}'>W</div>")
+                # 3. Check Final
+                if player == row['Final']:
+                    player_results.append(f"<div style='{win_css}'>W</div>")
+                else:
+                    player_results.append(f"<div style='{loss_css}'>L</div>")
+            else:
+                player_results.append(f"<div style='{loss_css}'>L</div>")
 
-        if player in match_winners:
-            player_results.append(f"<div style='{win_css}'>W</div>")
-        elif player in participants:
-            # If they were a participant but not a winner in any match row, they lost their QF
-            player_results.append(f"<div style='{loss_css}'>L</div>")
-
-    # Limit to last 5 and pad
     form_list = player_results[-5:]
     while len(form_list) < 5:
         form_list.insert(0, f"<div style='{dash_css}'>-</div>")
@@ -159,11 +168,8 @@ def get_countdown(target_date_str):
 def render_match(p1, p2, key, img_lookup, disabled=False):
     img1 = img_lookup.get(p1, "https://via.placeholder.com/150")
     img2 = img_lookup.get(p2, "https://via.placeholder.com/150")
-    
-    # Generate the form icons
     form1 = get_form(p1)
     form2 = get_form(p2)
-    
     st.markdown(f"""
         <div style="border: 1px solid #C4B454; border-radius: 12px; background: rgba(20, 20, 20, 0.95); padding: 15px; margin-bottom: 10px;">
             <div style="display: flex; justify-content: space-around; align-items: center;">
@@ -187,7 +193,6 @@ def render_match(p1, p2, key, img_lookup, disabled=False):
 with st.sidebar:
     st.image("https://i.postimg.cc/8kr9Yqnx/darts-logo-big.png", width='stretch')
     st.markdown("<h1 style='text-align: center; font-size: 1.5rem;'>MATCH PREDICTOR</h1>", unsafe_allow_html=True)
-    
     if st.session_state['username'] == "":
         if not st.session_state['reg_mode']:
             u_in = st.text_input("Username")
@@ -197,7 +202,6 @@ with st.sidebar:
                 if not udf[(udf['Username'].astype(str)==str(u_in)) & (udf['Password'].astype(str)==str(p_in))].empty:
                     st.session_state['username'] = u_in; st.rerun()
                 else: st.error("Invalid Login")
-            
             if st.button("CREATE AN ACCOUNT"):
                 st.session_state['reg_mode'] = True; st.rerun()
         else:
@@ -215,7 +219,6 @@ with st.sidebar:
                     st.success("Account Created! Please Login.")
                     st.session_state['reg_mode'] = False; time.sleep(1); st.rerun()
                 else: st.warning("Please fill in both fields.")
-            
             if st.button("BACK TO LOGIN"):
                 st.session_state['reg_mode'] = False; st.rerun()
     else:
@@ -242,7 +245,6 @@ if st.session_state['username'] != "":
             if not upcoming.empty:
                 next_night = upcoming.iloc[0]['Night']
                 default_index = options.index(next_night)
-            
             night = st.selectbox("Select Night", options, index=default_index)
             n_data = admin_df[admin_df['Night'] == night].iloc[0]
             st.markdown(f"<h1 style='text-align: center;'>{night}</h1>", unsafe_allow_html=True)
@@ -276,14 +278,11 @@ if st.session_state['username'] != "":
             upcoming = admin_df[pd.to_datetime(admin_df['Cutoff']) > datetime.now()]
             def_night = upcoming.iloc[0]['Night'] if not upcoming.empty else opts[-1]
             sel_night = st.selectbox("View Predictions for:", opts, index=opts.index(def_night))
-            
             subs_df = get_data("User_Submissions")
             user_done = not subs_df[(subs_df['Username'] == st.session_state['username']) & (subs_df['Night'] == sel_night)].empty
-
             if user_done:
                 rivals = subs_df[(subs_df['Night'] == sel_night) & (subs_df['Username'] != st.session_state['username'])]
-                if rivals.empty:
-                    st.info("No rivals have submitted predictions for this night yet.")
+                if rivals.empty: st.info("No rivals have submitted predictions for this night yet.")
                 for _, row in rivals.iterrows():
                     with st.expander(f"👤 {row['Username'].upper()}'S PICKS"):
                         c1, c2, c3 = st.columns(3)
@@ -292,7 +291,7 @@ if st.session_state['username'] != "":
                         with c3: st.markdown(f"**Winner:**\n\n<h3 style='color:#C4B454;'>{row['Final']}</h3>", unsafe_allow_html=True)
             else:
                 st.warning("⛔️ ACCESS DENIED")
-                st.info("You must submit your own predictions for this night before you can see what your rivals have picked!")
+                st.info("You must submit your own predictions for this night first!")
 
     elif st.session_state['current_page'] == "Leaderboard":
         st.markdown("<h1 style='text-align: center;'>🏆 LEADERBOARD</h1>", unsafe_allow_html=True)
