@@ -14,6 +14,17 @@ if 'reg_mode' not in st.session_state: st.session_state['reg_mode'] = False
 conn = st.connection("gsheets", type=GSheetsConnection)
 URL = st.secrets["connections"]["gsheets"]["spreadsheet"]
 
+# --- NAME SUBSTITUTION MAP ---
+# Keeps the UI clean while maintaining sheet integrity
+NAME_MAP = {
+    "Michael van Gerwen": "MVG",
+    "Luke Littler": "Littler",
+    "Luke Humphries": "Humphries"
+}
+
+def get_display_name(full_name):
+    return NAME_MAP.get(full_name, full_name)
+
 @st.cache_data(ttl=60)
 def get_data(worksheet):
     try:
@@ -42,7 +53,6 @@ def get_form(player):
         if n_admin.empty: continue
         n_admin = n_admin.iloc[0]
         
-        # 1. Check Quarter Finals
         qf_matchups = [
             (n_admin['QF1-P1'], n_admin['QF1-P2'], row['QF1']),
             (n_admin['QF2-P1'], n_admin['QF2-P2'], row['QF2']),
@@ -51,21 +61,17 @@ def get_form(player):
         ]
         
         won_qf = False
-        played_qf = False
         for p1, p2, winner in qf_matchups:
             if player == p1 or player == p2:
-                played_qf = True
                 if player == winner:
                     player_results.append(f"<div style='{win_css}'>W</div>")
                     won_qf = True
                 else:
                     player_results.append(f"<div style='{loss_css}'>L</div>")
         
-        # 2. Check Semi Finals (only if they progressed)
         if won_qf:
             if player == row['SF1'] or player == row['SF2']:
                 player_results.append(f"<div style='{win_css}'>W</div>")
-                # 3. Check Final
                 if player == row['Final']:
                     player_results.append(f"<div style='{win_css}'>W</div>")
                 else:
@@ -87,35 +93,15 @@ st.markdown("""
                     url("https://i.postimg.cc/d1kXbbDk/2025PLFinal-Gen-View.jpg"); 
         background-size: cover; background-attachment: fixed; 
     }
-    [data-testid="stSidebar"] {
-        background-color: rgba(15, 15, 15, 0.98) !important;
-        border-right: 1px solid #C4B454;
-    }
-    [data-testid="stSidebarContent"] { color: white !important; }
-    html, body, [class*="st-"] p, label, .stMarkdown, .stText, [data-testid="stWidgetLabel"] p {
-        color: white !important; font-weight: 500 !important;
-    }
+    [data-testid="stSidebar"] { background-color: rgba(15, 15, 15, 0.98) !important; border-right: 1px solid #C4B454; }
+    html, body, [class*="st-"] p, label, .stMarkdown, .stText, [data-testid="stWidgetLabel"] p { color: white !important; font-weight: 500 !important; }
     h1, h2, h3 { color: #C4B454 !important; text-transform: uppercase; font-weight: 900 !important; }
-    .leaderboard-ui {
-        width: 100%; border-collapse: collapse; background: rgba(15, 15, 15, 0.95);
-        border: 1px solid #C4B454; border-radius: 10px; overflow: hidden;
-    }
+    .leaderboard-ui { width: 100%; border-collapse: collapse; background: rgba(15, 15, 15, 0.95); border: 1px solid #C4B454; border-radius: 10px; overflow: hidden; }
     .leaderboard-ui th { background-color: #C4B454; color: black; padding: 15px; text-align: left; font-weight: 900; }
     .leaderboard-ui td { padding: 15px; border-bottom: 1px solid #333; color: white; }
-    div.stButton > button {
-        background-color: #C4B454 !important; color: black !important;
-        font-weight: 700 !important; text-transform: uppercase; width: 100% !important;
-        border-radius: 4px; height: 45px;
-    }
-    div.stButton > button:hover { background-color: #e5d464 !important; }
-    div[data-baseweb="select"] > div {
-        background-color: rgba(30, 30, 30, 0.9) !important;
-        color: white !important; border: 1px solid #C4B454 !important;
-    }
-    .countdown-box {
-        background: rgba(0,0,0,0.8); border: 2px solid #C4B454; 
-        border-radius: 10px; padding: 10px; width: 70px; text-align: center;
-    }
+    div.stButton > button { background-color: #C4B454 !important; color: black !important; font-weight: 700 !important; text-transform: uppercase; width: 100% !important; border-radius: 4px; height: 45px; }
+    div[data-baseweb="select"] > div { background-color: rgba(30, 30, 30, 0.9) !important; color: white !important; border: 1px solid #C4B454 !important; }
+    .countdown-box { background: rgba(0,0,0,0.8); border: 2px solid #C4B454; border-radius: 10px; padding: 10px; width: 70px; text-align: center; }
     </style>
 """, unsafe_allow_html=True)
 
@@ -151,16 +137,13 @@ def get_countdown(target_date_str):
         now = datetime.now()
         diff = target_date - now
         if diff.total_seconds() > 0:
-            days = diff.days
-            hours, remainder = divmod(diff.seconds, 3600)
-            minutes, seconds = divmod(remainder, 60)
-            return f"""
-                <div style='display: flex; justify-content: center; gap: 10px; margin-top: 10px; margin-bottom: 20px;'>
-                    <div class='countdown-box'><div style='font-size: 1.5rem; font-weight: 900; color: #C4B454;'>{days}</div><div style='font-size: 0.5rem; color: white;'>DAYS</div></div>
-                    <div class='countdown-box'><div style='font-size: 1.5rem; font-weight: 900; color: #C4B454;'>{hours:02d}</div><div style='font-size: 0.5rem; color: white;'>HRS</div></div>
-                    <div class='countdown-box'><div style='font-size: 1.5rem; font-weight: 900; color: #C4B454;'>{minutes:02d}</div><div style='font-size: 0.5rem; color: white;'>MINS</div></div>
-                </div>
-            """
+            days, hours = diff.days, diff.seconds // 3600
+            mins = (diff.seconds % 3600) // 60
+            return f"""<div style='display: flex; justify-content: center; gap: 10px; margin-bottom: 20px;'>
+                <div class='countdown-box'><div style='font-size: 1.5rem; font-weight: 900; color: #C4B454;'>{days}</div><div style='font-size: 0.5rem;'>DAYS</div></div>
+                <div class='countdown-box'><div style='font-size: 1.5rem; font-weight: 900; color: #C4B454;'>{hours:02d}</div><div style='font-size: 0.5rem;'>HRS</div></div>
+                <div class='countdown-box'><div style='font-size: 1.5rem; font-weight: 900; color: #C4B454;'>{mins:02d}</div><div style='font-size: 0.5rem;'>MINS</div></div>
+            </div>"""
     except: pass
     return "<h3 style='text-align:center; color:#C4B454;'>⛔️ ENTRIES CLOSED</h3>"
 
@@ -170,29 +153,33 @@ def render_match(p1, p2, key, img_lookup, disabled=False):
     img2 = img_lookup.get(p2, "https://via.placeholder.com/150")
     form1 = get_form(p1)
     form2 = get_form(p2)
+    # Use display name in the HTML, but p1/p2 (full names) for the data logic
+    disp1 = get_display_name(p1)
+    disp2 = get_display_name(p2)
     st.markdown(f"""
         <div style="border: 1px solid #C4B454; border-radius: 12px; background: rgba(20, 20, 20, 0.95); padding: 15px; margin-bottom: 10px;">
             <div style="display: flex; justify-content: space-around; align-items: center;">
                 <div style="text-align: center; width: 45%;">
                     <img src="{img1}" style="width: 80px; border-radius: 8px; border: 1px solid #333;"><br>
-                    <div style="font-weight:900; margin-top:5px;">{p1}</div>
+                    <div style="font-weight:900; margin-top:5px;">{disp1}</div>
                     {form1}
                 </div>
                 <div style="color: #C4B454; font-weight: 900; font-size: 1.5rem;">VS</div>
                 <div style="text-align: center; width: 45%;">
                     <img src="{img2}" style="width: 80px; border-radius: 8px; border: 1px solid #333;"><br>
-                    <div style="font-weight:900; margin-top:5px;">{p2}</div>
+                    <div style="font-weight:900; margin-top:5px;">{disp2}</div>
                     {form2}
                 </div>
             </div>
         </div>
     """, unsafe_allow_html=True)
-    return st.selectbox(f"Winner", ["Select Winner", p1, p2], key=key, label_visibility="collapsed", disabled=disabled)
+    # The selectbox options map the full name to the display name for the user
+    options = ["Select Winner", p1, p2]
+    return st.selectbox("Winner", options, format_func=lambda x: get_display_name(x), key=key, label_visibility="collapsed", disabled=disabled)
 
 # 5. SIDEBAR
 with st.sidebar:
     st.image("https://i.postimg.cc/8kr9Yqnx/darts-logo-big.png", width='stretch')
-    st.markdown("<h1 style='text-align: center; font-size: 1.5rem;'>MATCH PREDICTOR</h1>", unsafe_allow_html=True)
     if st.session_state['username'] == "":
         if not st.session_state['reg_mode']:
             u_in = st.text_input("Username")
@@ -202,25 +189,16 @@ with st.sidebar:
                 if not udf[(udf['Username'].astype(str)==str(u_in)) & (udf['Password'].astype(str)==str(p_in))].empty:
                     st.session_state['username'] = u_in; st.rerun()
                 else: st.error("Invalid Login")
-            if st.button("CREATE AN ACCOUNT"):
-                st.session_state['reg_mode'] = True; st.rerun()
+            if st.button("CREATE AN ACCOUNT"): st.session_state['reg_mode'] = True; st.rerun()
         else:
-            st.markdown("### Register")
             new_u = st.text_input("New Username")
             new_p = st.text_input("New Password", type="password")
             if st.button("SUBMIT REGISTRATION"):
                 udf = get_data("Users")
-                if new_u in udf['Username'].astype(str).values:
-                    st.error("Username already exists!")
+                if new_u in udf['Username'].astype(str).values: st.error("Exists!")
                 elif new_u and new_p:
-                    new_user_df = pd.DataFrame([{"Username": new_u, "Password": new_p}])
-                    conn.update(spreadsheet=URL, worksheet="Users", data=pd.concat([udf, new_user_df]))
-                    st.cache_data.clear()
-                    st.success("Account Created! Please Login.")
-                    st.session_state['reg_mode'] = False; time.sleep(1); st.rerun()
-                else: st.warning("Please fill in both fields.")
-            if st.button("BACK TO LOGIN"):
-                st.session_state['reg_mode'] = False; st.rerun()
+                    conn.update(spreadsheet=URL, worksheet="Users", data=pd.concat([udf, pd.DataFrame([{"Username": new_u, "Password": new_p}])]))
+                    st.cache_data.clear(); st.session_state['reg_mode'] = False; st.rerun()
     else:
         st.write(f"Logged in: **{st.session_state['username']}**")
         if st.button("Matches"): st.session_state['current_page'] = "Matches"
@@ -228,8 +206,7 @@ with st.sidebar:
         if st.button("Leaderboard"): st.session_state['current_page'] = "Leaderboard"
         if st.session_state['username'].lower() == "domzy":
             if st.button("Admin"): st.session_state['current_page'] = "Admin"
-        if st.button("Logout"): 
-            st.session_state['username'] = ""; st.session_state['current_page'] = "Matches"; st.rerun()
+        if st.button("Logout"): st.session_state['username'] = ""; st.rerun()
 
 # 6. MAIN CONTENT
 if st.session_state['username'] != "":
@@ -239,13 +216,9 @@ if st.session_state['username'] != "":
 
     if st.session_state['current_page'] == "Matches":
         if not admin_df.empty:
-            options = list(admin_df['Night'].unique())
+            opts = list(admin_df['Night'].unique())
             upcoming = admin_df[pd.to_datetime(admin_df['Cutoff']) > datetime.now()]
-            default_index = 0
-            if not upcoming.empty:
-                next_night = upcoming.iloc[0]['Night']
-                default_index = options.index(next_night)
-            night = st.selectbox("Select Night", options, index=default_index)
+            night = st.selectbox("Select Night", opts, index=opts.index(upcoming.iloc[0]['Night']) if not upcoming.empty else 0)
             n_data = admin_df[admin_df['Night'] == night].iloc[0]
             st.markdown(f"<h1 style='text-align: center;'>{night}</h1>", unsafe_allow_html=True)
             st.markdown(f"<h3 style='text-align: center;'>{n_data['Venue']}</h3>", unsafe_allow_html=True)
@@ -268,62 +241,49 @@ if st.session_state['username'] != "":
                         if st.button("SUBMIT PREDICTIONS"):
                             new_row = pd.DataFrame([{"Timestamp": datetime.now(), "Username": st.session_state['username'], "Night": night, "QF1": q1, "QF2": q2, "QF3": q3, "QF4": q4, "SF1": s1, "SF2": s2, "Final": fin}])
                             conn.update(spreadsheet=URL, worksheet="User_Submissions", data=pd.concat([subs_df, new_row]))
-                            st.cache_data.clear(); st.success("Good luck!"); time.sleep(1); st.rerun()
-            if done: st.info("Predictions locked for this night.")
+                            st.cache_data.clear(); st.rerun()
+            if done: st.info("Predictions locked.")
 
     elif st.session_state['current_page'] == "Rival Watch":
         st.markdown("<h1 style='text-align: center;'>👀 RIVAL WATCH</h1>", unsafe_allow_html=True)
         if not admin_df.empty:
             opts = list(admin_df['Night'].unique())
-            upcoming = admin_df[pd.to_datetime(admin_df['Cutoff']) > datetime.now()]
-            def_night = upcoming.iloc[0]['Night'] if not upcoming.empty else opts[-1]
-            sel_night = st.selectbox("View Predictions for:", opts, index=opts.index(def_night))
+            sel_night = st.selectbox("View Predictions for:", opts)
             subs_df = get_data("User_Submissions")
-            user_done = not subs_df[(subs_df['Username'] == st.session_state['username']) & (subs_df['Night'] == sel_night)].empty
-            if user_done:
+            if not subs_df[(subs_df['Username'] == st.session_state['username']) & (subs_df['Night'] == sel_night)].empty:
                 rivals = subs_df[(subs_df['Night'] == sel_night) & (subs_df['Username'] != st.session_state['username'])]
-                if rivals.empty: st.info("No rivals have submitted predictions for this night yet.")
                 for _, row in rivals.iterrows():
-                    with st.expander(f"👤 {row['Username'].upper()}'S PICKS"):
+                    with st.expander(f"👤 {row['Username'].upper()}"):
                         c1, c2, c3 = st.columns(3)
-                        with c1: st.write(f"**Quarters:**\n\n{row['QF1']}\n\n{row['QF2']}\n\n{row['QF3']}\n\n{row['QF4']}")
-                        with c2: st.write(f"**Semis:**\n\n{row['SF1']}\n\n{row['SF2']}")
-                        with c3: st.markdown(f"**Winner:**\n\n<h3 style='color:#C4B454;'>{row['Final']}</h3>", unsafe_allow_html=True)
-            else:
-                st.warning("⛔️ ACCESS DENIED")
-                st.info("You must submit your own predictions for this night first!")
+                        with c1: st.write(f"**Quarters:**\n\n{get_display_name(row['QF1'])}\n\n{get_display_name(row['QF2'])}\n\n{get_display_name(row['QF3'])}\n\n{get_display_name(row['QF4'])}")
+                        with c2: st.write(f"**Semis:**\n\n{get_display_name(row['SF1'])}\n\n{get_display_name(row['SF2'])}")
+                        with c3: st.markdown(f"**Winner:**\n\n<h3 style='color:#C4B454;'>{get_display_name(row['Final'])}</h3>", unsafe_allow_html=True)
+            else: st.warning("Submit yours first!")
 
     elif st.session_state['current_page'] == "Leaderboard":
         st.markdown("<h1 style='text-align: center;'>🏆 LEADERBOARD</h1>", unsafe_allow_html=True)
         lb_df = calculate_leaderboard()
         if not lb_df.empty:
             html = "<table class='leaderboard-ui'><tr><th>Rank</th><th>Player</th><th>Points</th></tr>"
-            for i, row in enumerate(lb_df.itertuples(), 1):
-                html += f"<tr><td>{i}</td><td>{row.Username}</td><td>{int(row.Total)}</td></tr>"
+            for i, row in enumerate(lb_df.itertuples(), 1): html += f"<tr><td>{i}</td><td>{row.Username}</td><td>{int(row.Total)}</td></tr>"
             st.markdown(html + "</table>", unsafe_allow_html=True)
-        else: st.info("No scores calculated yet.")
 
     elif st.session_state['current_page'] == "Admin":
-        st.title("⚙︎ Admin Panel")
         res_df = get_data("PL_Results")
-        target = st.selectbox("Select Night to Update", admin_df['Night'].unique())
+        target = st.selectbox("Select Night", admin_df['Night'].unique())
         td = admin_df[admin_df['Night'] == target].iloc[0]
-        aq1 = st.selectbox("QF1 Winner", ["Select Winner", td['QF1-P1'], td['QF1-P2']], key="aq1")
-        aq2 = st.selectbox("QF2 Winner", ["Select Winner", td['QF2-P1'], td['QF2-P2']], key="aq2")
-        aq3 = st.selectbox("QF3 Winner", ["Select Winner", td['QF3-P1'], td['QF3-P2']], key="aq3")
-        aq4 = st.selectbox("QF4 Winner", ["Select Winner", td['QF4-P1'], td['QF4-P2']], key="aq4")
-        as1 = st.selectbox("SF1 Winner", ["Select Winner", aq1, aq2] if aq1 != "Select Winner" else ["Select Winner"], key="as1")
-        as2 = st.selectbox("SF2 Winner", ["Select Winner", aq3, aq4] if aq3 != "Select Winner" else ["Select Winner"], key="as2")
-        afn = st.selectbox("Final Winner", ["Select Winner", as1, as2] if as1 != "Select Winner" else ["Select Winner"], key="afn")
-        if st.button("SAVE OFFICIAL RESULTS"):
-            if "Select Winner" in [aq1, aq2, aq3, aq4, as1, as2, afn]: st.error("Please select all winners.")
-            else:
-                res_df = res_df[res_df['Night'].astype(str) != str(target)]
-                new_res = pd.DataFrame([{"Night": target, "QF1": aq1, "QF2": aq2, "QF3": aq3, "QF4": aq4, "SF1": as1, "SF2": as2, "Final": afn}])
-                conn.update(spreadsheet=URL, worksheet="PL_Results", data=pd.concat([res_df, new_res]).reset_index(drop=True))
-                st.cache_data.clear(); st.success("Scores updated!"); time.sleep(1); st.rerun()
+        aq1 = st.selectbox("QF1", ["Select Winner", td['QF1-P1'], td['QF1-P2']], format_func=lambda x: get_display_name(x))
+        aq2 = st.selectbox("QF2", ["Select Winner", td['QF2-P1'], td['QF2-P2']], format_func=lambda x: get_display_name(x))
+        aq3 = st.selectbox("QF3", ["Select Winner", td['QF3-P1'], td['QF3-P2']], format_func=lambda x: get_display_name(x))
+        aq4 = st.selectbox("QF4", ["Select Winner", td['QF4-P1'], td['QF4-P2']], format_func=lambda x: get_display_name(x))
+        as1 = st.selectbox("SF1", ["Select Winner", aq1, aq2], format_func=lambda x: get_display_name(x))
+        as2 = st.selectbox("SF2", ["Select Winner", aq3, aq4], format_func=lambda x: get_display_name(x))
+        afn = st.selectbox("Final", ["Select Winner", as1, as2], format_func=lambda x: get_display_name(x))
+        if st.button("SAVE"):
+            res_df = res_df[res_df['Night'] != target]
+            new_res = pd.DataFrame([{"Night": target, "QF1": aq1, "QF2": aq2, "QF3": aq3, "QF4": aq4, "SF1": as1, "SF2": as2, "Final": afn}])
+            conn.update(spreadsheet=URL, worksheet="PL_Results", data=pd.concat([res_df, new_res]))
+            st.cache_data.clear(); st.rerun()
 else:
-    col1, col2, col3 = st.columns([1, 1, 1])
-    with col2: st.image("https://i.postimg.cc/8kr9Yqnx/darts-logo-big.png", width='stretch')
-    st.markdown("<h1 style='text-align: center; margin-top: -20px;'>WELCOME</h1>", unsafe_allow_html=True)
-    st.markdown("<p style='text-align: center;'>Please login in the sidebar to view matches and enter predictions.</p>", unsafe_allow_html=True)
+    st.image("https://i.postimg.cc/8kr9Yqnx/darts-logo-big.png", width=300)
+    st.markdown("<h1 style='text-align: center;'>PLEASE LOGIN</h1>", unsafe_allow_html=True)
