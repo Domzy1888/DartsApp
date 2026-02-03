@@ -23,6 +23,53 @@ def get_data(worksheet):
         return df
     except: return pd.DataFrame()
 
+# --- REFINED FORM HELPER WITH PILL ICONS ---
+def get_form(player):
+    results = get_data("PL_Results")
+    admin = get_data("PL_2026_Admin")
+    
+    # CSS for the icons
+    win_css = "display:inline-block; width:18px; height:18px; line-height:18px; background:#00FF00; color:black; border-radius:3px; font-size:10px; font-weight:900; margin:1px;"
+    loss_css = "display:inline-block; width:18px; height:18px; line-height:18px; background:#FF0000; color:white; border-radius:3px; font-size:10px; font-weight:900; margin:1px;"
+    dash_css = "display:inline-block; width:18px; height:18px; line-height:18px; background:#444; color:#888; border-radius:3px; font-size:10px; font-weight:900; margin:1px;"
+
+    if results.empty or admin.empty: 
+        return "".join([f"<div style='{dash_css}'>-</div>" for _ in range(5)])
+    
+    player_results = []
+    # Search all result rows for this player
+    for _, row in results.iterrows():
+        night = row['Night']
+        n_admin = admin[admin['Night'] == night]
+        if n_admin.empty: continue
+        n_admin = n_admin.iloc[0]
+        
+        # Check if they were in any of the matches on that night
+        # We check the winners recorded in the PL_Results sheet
+        match_winners = [row['QF1'], row['QF2'], row['QF3'], row['QF4'], row['SF1'], row['SF2'], row['Final']]
+        
+        # We also need to know if they played and LOST. 
+        # We check the Admin sheet for the players listed for that night
+        participants = [
+            n_admin['QF1-P1'], n_admin['QF1-P2'], 
+            n_admin['QF2-P1'], n_admin['QF2-P2'],
+            n_admin['QF3-P1'], n_admin['QF3-P2'], 
+            n_admin['QF4-P1'], n_admin['QF4-P2']
+        ]
+
+        if player in match_winners:
+            player_results.append(f"<div style='{win_css}'>W</div>")
+        elif player in participants:
+            # If they were a participant but not a winner in any match row, they lost their QF
+            player_results.append(f"<div style='{loss_css}'>L</div>")
+
+    # Limit to last 5 and pad
+    form_list = player_results[-5:]
+    while len(form_list) < 5:
+        form_list.insert(0, f"<div style='{dash_css}'>-</div>")
+    
+    return f"<div style='margin-top:8px;'>{''.join(form_list)}</div>"
+
 # 2. THEMED CSS
 st.markdown("""
     <style>
@@ -112,12 +159,25 @@ def get_countdown(target_date_str):
 def render_match(p1, p2, key, img_lookup, disabled=False):
     img1 = img_lookup.get(p1, "https://via.placeholder.com/150")
     img2 = img_lookup.get(p2, "https://via.placeholder.com/150")
+    
+    # Generate the form icons
+    form1 = get_form(p1)
+    form2 = get_form(p2)
+    
     st.markdown(f"""
         <div style="border: 1px solid #C4B454; border-radius: 12px; background: rgba(20, 20, 20, 0.95); padding: 15px; margin-bottom: 10px;">
             <div style="display: flex; justify-content: space-around; align-items: center;">
-                <div style="text-align: center; width: 40%;"><img src="{img1}" style="width: 75px; border-radius: 8px;"><br>{p1}</div>
-                <div style="color: #C4B454; font-weight: 900; font-size: 1.2rem;">VS</div>
-                <div style="text-align: center; width: 40%;"><img src="{img2}" style="width: 75px; border-radius: 8px;"><br>{p2}</div>
+                <div style="text-align: center; width: 45%;">
+                    <img src="{img1}" style="width: 80px; border-radius: 8px; border: 1px solid #333;"><br>
+                    <div style="font-weight:900; margin-top:5px;">{p1}</div>
+                    {form1}
+                </div>
+                <div style="color: #C4B454; font-weight: 900; font-size: 1.5rem;">VS</div>
+                <div style="text-align: center; width: 45%;">
+                    <img src="{img2}" style="width: 80px; border-radius: 8px; border: 1px solid #333;"><br>
+                    <div style="font-weight:900; margin-top:5px;">{p2}</div>
+                    {form2}
+                </div>
             </div>
         </div>
     """, unsafe_allow_html=True)
