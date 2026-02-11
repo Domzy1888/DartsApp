@@ -151,7 +151,6 @@ def render_match(p1, p2, key, img_lookup, disabled=False):
     img2 = img_lookup.get(p2, "https://via.placeholder.com/150")
     form1 = get_form(p1)
     form2 = get_form(p2)
-    # Use display name in the HTML, but p1/p2 (full names) for the data logic
     disp1 = get_display_name(p1)
     disp2 = get_display_name(p2)
     st.markdown(f"""
@@ -171,7 +170,6 @@ def render_match(p1, p2, key, img_lookup, disabled=False):
             </div>
         </div>
     """, unsafe_allow_html=True)
-    # The selectbox options map the full name to the display name for the user
     options = ["Select Winner", p1, p2]
     return st.selectbox("Winner", options, format_func=lambda x: get_display_name(x), key=key, label_visibility="collapsed", disabled=disabled)
 
@@ -221,8 +219,22 @@ if st.session_state['username'] != "":
             st.markdown(f"<h1 style='text-align: center;'>{night}</h1>", unsafe_allow_html=True)
             st.markdown(f"<h3 style='text-align: center;'>{n_data['Venue']}</h3>", unsafe_allow_html=True)
             st.markdown(get_countdown(n_data['Cutoff']), unsafe_allow_html=True)
+
+            # --- MY PICKS SECTION ---
             subs_df = get_data("User_Submissions")
-            done = not subs_df[(subs_df['Username'] == st.session_state['username']) & (subs_df['Night'] == night)].empty
+            user_picks = subs_df[(subs_df['Username'] == st.session_state['username']) & (subs_df['Night'] == night)]
+            if not user_picks.empty:
+                with st.expander("🎯 VIEW YOUR LOCKED PREDICTIONS", expanded=False):
+                    p = user_picks.iloc[0]
+                    st.markdown(f"""
+                        <div style="background: rgba(196, 180, 84, 0.1); border: 1px solid #C4B454; border-radius: 10px; padding: 15px;">
+                            <p style="margin:0;"><b>Quarters:</b> {get_display_name(p['QF1'])}, {get_display_name(p['QF2'])}, {get_display_name(p['QF3'])}, {get_display_name(p['QF4'])}</p>
+                            <p style="margin:5px 0;"><b>Semis:</b> {get_display_name(p['SF1'])}, {get_display_name(p['SF2'])}</p>
+                            <p style="margin:0;"><b>Winner:</b> <span style="color:#C4B454; font-weight:900;">{get_display_name(p['Final'])}</span></p>
+                        </div>
+                    """, unsafe_allow_html=True)
+            
+            done = not user_picks.empty
             st.write("### Quarter Finals")
             q1 = render_match(n_data['QF1-P1'], n_data['QF1-P2'], "q1", img_lookup, done)
             q2 = render_match(n_data['QF2-P1'], n_data['QF2-P2'], "q2", img_lookup, done)
